@@ -58,11 +58,52 @@
 body.theme-aadya {
   --theme-primary: var(--color-aadya);
   --theme-glow: var(--color-aadya-glow);
+  --bg-deep: #ffffff;
+  --bg-panel: #ffffff;
+  --text-main: #000000;
+  --text-sub: #111111;
+  --text-dark: #333333;
+  --border-panel: rgba(0, 0, 0, 0.15);
+  --border-hover: rgba(0, 0, 0, 0.3);
 }
 
 body.theme-rajat {
   --theme-primary: var(--color-rajat);
   --theme-glow: var(--color-rajat-glow);
+  --bg-deep: #ffffff;
+  --bg-panel: #ffffff;
+  --text-main: #000000;
+  --text-sub: #111111;
+  --text-dark: #333333;
+  --border-panel: rgba(0, 0, 0, 0.15);
+  --border-hover: rgba(0, 0, 0, 0.3);
+}
+
+/* Make auth overlay background white and text black */
+body.theme-aadya .auth-overlay,
+body.theme-rajat .auth-overlay {
+  background: #ffffff;
+}
+
+body.theme-aadya .auth-card,
+body.theme-rajat .auth-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+/* Force logo text and all spans to be black under active theme */
+body.theme-aadya .logo-text,
+body.theme-aadya .logo-text span,
+body.theme-aadya .logo-text-nav,
+body.theme-aadya .logo-text-nav span,
+body.theme-rajat .logo-text,
+body.theme-rajat .logo-text span,
+body.theme-rajat .logo-text-nav,
+body.theme-rajat .logo-text-nav span {
+  color: #000000 !important;
+  animation: none !important;
+  filter: none !important;
 }
 
 /* 
@@ -234,8 +275,8 @@ select:focus {
 }
 
 select option {
-  background: hsl(224, 71%, 6%);
-  color: var(--text-main);
+  background: #ffffff;
+  color: #000000;
 }
 
 /* Buttons */

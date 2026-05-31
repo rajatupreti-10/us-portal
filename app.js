@@ -54,7 +54,9 @@ const ctx = canvas.getContext('2d');
 
 let particles = [];
 let mouse = { x: null, y: null };
-const PARTICLE_COUNT = 450; // Dense dots to replicate antigravity welcome screen
+let activeAttractor = { x: null, y: null };
+let lastMouseMove = Date.now();
+const PARTICLE_COUNT = 800; // Dense dots to replicate antigravity welcome screen
 const REPULSION_RADIUS = 150;
 const REPULSION_FORCE = 4.5;
 const FRICTION = 0.94;
@@ -70,6 +72,7 @@ function resizeCanvas() {
 window.addEventListener('mousemove', (e) => {
   mouse.x = e.clientX;
   mouse.y = e.clientY;
+  lastMouseMove = Date.now();
 });
 window.addEventListener('mouseleave', () => {
   mouse.x = null;
@@ -94,7 +97,7 @@ class Particle {
   draw() {
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.12)'; // Subtle dark dots on white background
+    ctx.fillStyle = 'rgba(29, 78, 216, 0.7)'; // Darker, highly visible blue dots
     ctx.fill();
   }
 
@@ -114,10 +117,10 @@ class Particle {
     this.vx *= FRICTION;
     this.vy *= FRICTION;
 
-    // 3. Antigravity repulsion from cursor
-    if (mouse.x !== null && mouse.y !== null) {
-      const mdx = this.x - mouse.x;
-      const mdy = this.y - mouse.y;
+    // 3. Antigravity repulsion from active attractor
+    if (activeAttractor.x !== null && activeAttractor.y !== null) {
+      const mdx = this.x - activeAttractor.x;
+      const mdy = this.y - activeAttractor.y;
       const mdist = Math.hypot(mdx, mdy);
 
       if (mdist < REPULSION_RADIUS) {
@@ -152,6 +155,17 @@ function initParticles() {
 // Animation Loop (No connecting lines to align exactly with Google Antigravity's look)
 function animateParticles() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Keep animation alive even when user is inactive (no mouse moves for > 4 seconds)
+  if (mouse.x !== null && mouse.y !== null && (Date.now() - lastMouseMove < 4000)) {
+    activeAttractor.x = mouse.x;
+    activeAttractor.y = mouse.y;
+  } else {
+    // Inactive or mouse off-screen: wander the attractor using a Lissajous curve
+    const time = Date.now() * 0.001;
+    activeAttractor.x = canvas.width / 2 + Math.cos(time * 0.8) * (canvas.width * 0.35);
+    activeAttractor.y = canvas.height / 2 + Math.sin(time * 0.6) * (canvas.height * 0.35);
+  }
   
   particles.forEach(p => {
     p.update();
@@ -252,6 +266,24 @@ function saveLogs() {
   }
 }
 
+// --- Email Notification Trigger ---
+function triggerEmailNotification(sender, type, data) {
+  const recipient = sender === 'Rajat' ? 'aadyabackup1@gmail.com' : 'upreti.rajat@gmail.com';
+  let subject = '';
+  let body = '';
+
+  if (type === 'appreciation') {
+    subject = `[US Connection Portal] New Appreciation from ${sender}`;
+    body = `Hi,\n\nYou have received a new appreciation from ${sender}:\n\n"${data.message}"\n\nCheck it out in the portal!\n\nSent from US Connection Portal.`;
+  } else if (type === 'complaint') {
+    subject = `[US Connection Portal] New Complaint: ${data.title}`;
+    body = `Hi,\n\n${sender} has raised a new complaint:\n\nTitle: ${data.title}\nDescription: ${data.description}\n\nPlease acknowledge and work on it in the portal.\n\nSent from US Connection Portal.`;
+  }
+
+  const mailtoUrl = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(mailtoUrl, '_blank');
+}
+
 // --- Submit Handlers ---
 function submitAppreciation() {
   const message = inputAppreciationMsg.value.trim();
@@ -273,6 +305,7 @@ function submitAppreciation() {
   saveLogs();
   closeModal(modalAppreciation);
   renderFeed();
+  triggerEmailNotification(newLog.sender, 'appreciation', { message: message });
 }
 
 function submitComplaint() {
@@ -303,6 +336,7 @@ function submitComplaint() {
   saveLogs();
   closeModal(modalComplaint);
   renderFeed();
+  triggerEmailNotification(newLog.sender, 'complaint', { title: title, description: description });
 }
 
 /**
@@ -501,6 +535,14 @@ window.updateComplaintStatus = updateComplaintStatus;
 
 // --- Bind Navigation Events & Load ---
 function setupEventListeners() {
+  // Apply theme class immediately on dropdown selection during login (white theme / black text)
+  selectUser.addEventListener('change', () => {
+    const selected = selectUser.value;
+    if (selected) {
+      document.body.className = `theme-${selected.toLowerCase()}`;
+    }
+  });
+
   // Login flow
   btnLogin.addEventListener('click', () => {
     const selected = selectUser.value;
