@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>US. // Connection Portal</title>
+  <!-- Google Fonts for futuristic, clean design -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Interactive canvas particle layer -->
+  <canvas id="canvas-background"></canvas>
+
+  <!-- 1. Authentication Login Screen Overlay -->
+  <div id="login-overlay" class="auth-overlay">
+    <div class="auth-card glass-panel">
+      <header class="auth-header">
+        <h1 class="logo-text">US<span>.</span></h1>
+        <p class="auth-tagline">Connecting Aadya & Rajat</p>
+      </header>
+      
+      <div class="form-group">
+        <label for="select-user">Select Your Identity</label>
+        <div class="custom-select-wrapper">
+          <select id="select-user">
+            <option value="" disabled selected>Who are you?</option>
+            <option value="Aadya">Aadya</option>
+            <option value="Rajat">Rajat</option>
+          </select>
+        </div>
+      </div>
+      
+      <button class="action-btn btn-primary" id="btn-login">Enter Portal</button>
+    </div>
+  </div>
+
+  <!-- 2. Main Portal Interface (hidden initially, toggled by JS) -->
+  <div id="portal-container" class="portal-wrapper hidden">
+    <!-- Header Navbar -->
+    <header class="navbar glass-panel">
+      <div class="nav-brand">
+        <h1 class="logo-text-nav">US<span>.</span></h1>
+      </div>
+      <div class="nav-user-controls">
+        <span class="user-greeting">Hello, <strong id="current-user-name">User</strong></span>
+        <button class="nav-logout-btn" id="btn-logout" title="Switch User">
+          <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+          </svg>
+          Switch Partner
+        </button>
+      </div>
+    </header>
+
+    <!-- Hero Actions Section -->
+    <section class="hero-actions">
+      <!-- Appreciation Card Trigger -->
+      <button class="action-card glass-panel" id="card-trigger-appreciation">
+        <div class="card-glow-bg glow-gold"></div>
+        <div class="card-icon-circle icon-gold">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+        </div>
+        <div class="card-info">
+          <h3>Drop Appreciation</h3>
+          <p>Express gratitude or highlight a sweet moment</p>
+        </div>
+      </button>
+
+      <!-- Complaint Card Trigger -->
+      <button class="action-card glass-panel" id="card-trigger-complaint">
+        <div class="card-glow-bg glow-crimson"></div>
+        <div class="card-icon-circle icon-crimson">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/>
+          </svg>
+        </div>
+        <div class="card-info">
+          <h3>Raise a Complaint</h3>
+          <p>Log a grievance or flag an issue constructively</p>
+        </div>
+      </button>
+    </section>
+
+    <!-- Main Feed Section -->
+    <main class="feed-section glass-panel">
+      <header class="feed-header">
+        <h2>Connection Ledger</h2>
+        
+        <!-- Tab Selectors -->
+        <nav class="feed-tabs" aria-label="Feed Navigation">
+          <button class="tab-btn active" id="tab-all" data-tab="all">All Activity</button>
+          <button class="tab-btn" id="tab-inbox" data-tab="inbox">Inbox</button>
+          <button class="tab-btn" id="tab-outbox" data-tab="outbox">Outbox</button>
+        </nav>
+      </header>
+
+      <!-- Filters & Sorting Row -->
+      <div class="filters-row">
+        <div class="filter-group">
+          <label for="filter-type">Type</label>
+          <select id="filter-type">
+            <option value="all">All Items</option>
+            <option value="appreciation">Appreciations</option>
+            <option value="complaint">Complaints</option>
+          </select>
+        </div>
+
+        <div class="filter-group" id="status-filter-container">
+          <label for="filter-status">Status</label>
+          <select id="filter-status">
+            <option value="all">All Statuses</option>
+            <option value="Open">🔴 Open</option>
+            <option value="Acknowledged">🟡 Acknowledged</option>
+            <option value="In Progress">🔵 In Progress</option>
+            <option value="Closed">🟢 Closed</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Feed Cards Container -->
+      <div class="feed-list" id="feed-container">
+        <!-- Dynamic logs injected by JS -->
+        <div class="feed-empty-state">
+          <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="4" width="18" height="16" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <p>No connections logged yet. Drop a line to start!</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 3. Appreciation Modal Creation Sheet -->
+  <div id="modal-appreciation" class="modal-overlay hidden">
+    <div class="modal-content glass-panel">
+      <header class="modal-header">
+        <h3><span class="header-icon-gold">❤</span> Drop Appreciation</h3>
+        <button class="btn-close-modal" id="btn-close-appreciation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </header>
+      <div class="modal-body">
+        <p class="modal-instruction">Write a message to highlight what you appreciate about your partner today.</p>
+        <div class="form-group">
+          <label for="input-appreciation-msg">Your Message</label>
+          <textarea id="input-appreciation-msg" rows="5" placeholder="Thank you for..." maxlength="500"></textarea>
+        </div>
+        <button class="action-btn btn-primary" id="btn-submit-appreciation">Send Appreciation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. Complaint Modal Creation Sheet -->
+  <div id="modal-complaint" class="modal-overlay hidden">
+    <div class="modal-content glass-panel">
+      <header class="modal-header">
+        <h3><span class="header-icon-crimson">⚠</span> Raise a Complaint</h3>
+        <button class="btn-close-modal" id="btn-close-complaint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </header>
+      <div class="modal-body">
+        <p class="modal-instruction">Explain the issue constructively so your partner can acknowledge and work on it.</p>
+        <div class="form-group">
+          <label for="input-complaint-title">Title / Grievance Summary</label>
+          <input type="text" id="input-complaint-title" placeholder="E.g., Leaving dishes in sink" maxlength="60" />
+        </div>
+        <div class="form-group">
+          <label for="input-complaint-desc">Description / Details</label>
+          <textarea id="input-complaint-desc" rows="5" placeholder="Provide context or constructive solution ideas..." maxlength="1000"></textarea>
+        </div>
+        <button class="action-btn btn-primary" id="btn-submit-complaint">Submit Complaint</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
