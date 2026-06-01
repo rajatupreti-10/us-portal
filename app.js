@@ -797,6 +797,22 @@ function setupEventListeners() {
 
 // --- Initialize App ---
 document.addEventListener('DOMContentLoaded', () => {
+  // Staggered letter reveal for subtitle text on landing page
+  const subtitleEl = document.querySelector('.hero-subtitle');
+  if (subtitleEl) {
+    const text = subtitleEl.textContent.trim();
+    subtitleEl.textContent = '';
+    [...text].forEach((char, index) => {
+      const span = document.createElement('span');
+      span.textContent = char === ' ' ? '\u00A0' : char; // Use non-breaking space for layout
+      span.className = 'char-item';
+      // 0.4s base delay, followed by 18ms per character (gives a quick typewriter look)
+      const delay = 0.4 + index * 0.018;
+      span.style.animationDelay = `${delay}s`;
+      subtitleEl.appendChild(span);
+    });
+  }
+
   // 1. Setup particle system
   initParticles();
   animateParticles();
