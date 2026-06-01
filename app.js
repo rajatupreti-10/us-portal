@@ -9,6 +9,10 @@ let currentUser = null;
 let currentTab = 'all'; // 'all', 'inbox', 'outbox'
 let logs = [];
 
+// Initialize Supabase Client
+const { createClient } = supabase;
+const supabaseClient = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+
 // Player Custom Names
 const playerNames = {
   X: 'Player X',
@@ -247,23 +251,44 @@ window.addEventListener('click', (e) => {
   }
 });
 
-// --- LocalStorage Operations (Database Layer) ---
-function loadLogs() {
+// --- Supabase Database Operations ---
+async function loadLogs() {
   try {
-    const rawLogs = localStorage.getItem('us_portal_logs');
-    logs = rawLogs ? JSON.parse(rawLogs) : [];
+    // Migrate legacy localstorage data to Supabase if present
+    const rawLocalLogs = localStorage.getItem('us_portal_logs');
+    if (rawLocalLogs) {
+      const localLogs = JSON.parse(rawLocalLogs);
+      if (localLogs && localLogs.length > 0) {
+        console.log(`Found ${localLogs.length} legacy logs in localStorage. Migrating to Supabase...`);
+        const { error } = await supabaseClient
+          .from('logs')
+          .insert(localLogs);
+        if (error) {
+          console.error('Failed to migrate local logs to Supabase:', error);
+        } else {
+          console.log('Migration successful. Clearing localStorage logs...');
+          localStorage.removeItem('us_portal_logs');
+        }
+      } else {
+        localStorage.removeItem('us_portal_logs');
+      }
+    }
+  } catch (err) {
+    console.error('Error during local storage data migration:', err);
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('logs')
+      .select('*')
+      .order('timestamp', { ascending: false });
+    if (error) throw error;
+    logs = data || [];
   } catch (err) {
     console.error('Failed to load connection ledger logs:', err);
     logs = [];
   }
-}
-
-function saveLogs() {
-  try {
-    localStorage.setItem('us_portal_logs', JSON.stringify(logs));
-  } catch (err) {
-    console.error('Failed to save connection ledger logs:', err);
-  }
+  renderFeed();
 }
 
 // --- Email Notification Trigger ---
@@ -285,7 +310,7 @@ function triggerEmailNotification(sender, type, data) {
 }
 
 // --- Submit Handlers ---
-function submitAppreciation() {
+async function submitAppreciation() {
   const message = inputAppreciationMsg.value.trim();
   if (!message) {
     alert('Please enter a message of appreciation!');
@@ -301,14 +326,23 @@ function submitAppreciation() {
     timestamp: Date.now()
   };
 
-  logs.push(newLog);
-  saveLogs();
-  closeModal(modalAppreciation);
-  renderFeed();
-  triggerEmailNotification(newLog.sender, 'appreciation', { message: message });
+  try {
+    const { error } = await supabaseClient
+      .from('logs')
+      .insert([newLog]);
+    if (error) throw error;
+
+    logs.push(newLog);
+    closeModal(modalAppreciation);
+    renderFeed();
+    triggerEmailNotification(newLog.sender, 'appreciation', { message: message });
+  } catch (err) {
+    console.error('Failed to submit appreciation:', err);
+    alert('Failed to save to database: ' + err.message);
+  }
 }
 
-function submitComplaint() {
+async function submitComplaint() {
   const title = inputComplaintTitle.value.trim();
   const description = inputComplaintDesc.value.trim();
 
@@ -332,17 +366,26 @@ function submitComplaint() {
     timestamp: Date.now()
   };
 
-  logs.push(newLog);
-  saveLogs();
-  closeModal(modalComplaint);
-  renderFeed();
-  triggerEmailNotification(newLog.sender, 'complaint', { title: title, description: description });
+  try {
+    const { error } = await supabaseClient
+      .from('logs')
+      .insert([newLog]);
+    if (error) throw error;
+
+    logs.push(newLog);
+    closeModal(modalComplaint);
+    renderFeed();
+    triggerEmailNotification(newLog.sender, 'complaint', { title: title, description: description });
+  } catch (err) {
+    console.error('Failed to submit complaint:', err);
+    alert('Failed to save to database: ' + err.message);
+  }
 }
 
 /**
  * Handles status updates for complaints based on user roles and permissions
  */
-function updateComplaintStatus(id, newStatus) {
+async function updateComplaintStatus(id, newStatus) {
   const logIndex = logs.findIndex(log => log.id === id);
   if (logIndex === -1) return;
 
@@ -365,10 +408,20 @@ function updateComplaintStatus(id, newStatus) {
     return;
   }
 
-  // Commit update
-  log.status = newStatus;
-  saveLogs();
-  renderFeed();
+  try {
+    const { error } = await supabaseClient
+      .from('logs')
+      .update({ status: newStatus })
+      .eq('id', id);
+    if (error) throw error;
+
+    // Commit update locally
+    log.status = newStatus;
+    renderFeed();
+  } catch (err) {
+    console.error('Failed to update complaint status:', err);
+    alert('Failed to update status in database: ' + err.message);
+  }
 }
 
 // --- Feed Rendering Engine ---
