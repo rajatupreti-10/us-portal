@@ -263,10 +263,7 @@ function animateParticles() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
   if (currentUser === null) {
-    landingParticles.forEach(p => {
-      p.update();
-      p.draw(ctx);
-    });
+    // No particles rendered on landing page (solid white background)
   } else {
     // Keep animation alive even when user is inactive (no mouse moves for > 4 seconds)
     if (mouse.x !== null && mouse.y !== null && (Date.now() - lastMouseMove < 4000)) {
