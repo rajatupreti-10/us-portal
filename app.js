@@ -55,10 +55,12 @@ const canvas = document.getElementById('canvas-background');
 const ctx = canvas.getContext('2d');
 
 let particles = [];
+let landingParticles = [];
 let mouse = { x: null, y: null };
 let activeAttractor = { x: null, y: null };
 let lastMouseMove = Date.now();
 const PARTICLE_COUNT = 800; // Dense dots to replicate antigravity welcome screen
+const LANDING_PARTICLE_COUNT = 150; // Dash count for vortex
 const REPULSION_RADIUS = 150;
 const REPULSION_FORCE = 4.5;
 const FRICTION = 0.94;
@@ -146,33 +148,142 @@ class Particle {
   }
 }
 
+// Landing Particle Class (Vortex of colorful dashes)
+class LandingParticle {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.reset(true); // Initial load spreads them out
+  }
+
+  reset(initSpread = false) {
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+    
+    this.angle = Math.random() * Math.PI * 2;
+    this.speed = Math.random() * 0.6 + 0.3; // Outward speed
+    this.vortexSpeed = (Math.random() * 0.15 + 0.05) * (Math.random() > 0.5 ? 1 : -1); // Vortex spin
+    
+    if (initSpread) {
+      // Spread out randomly between center and screen edge
+      const maxDist = Math.max(this.canvas.width, this.canvas.height) * 0.65;
+      const dist = Math.random() * maxDist;
+      this.x = cx + Math.cos(this.angle) * dist;
+      this.y = cy + Math.sin(this.angle) * dist;
+    } else {
+      // Start directly at center
+      this.x = cx;
+      this.y = cy;
+    }
+    
+    this.vx = Math.cos(this.angle) * this.speed;
+    this.vy = Math.sin(this.angle) * this.speed;
+    
+    // Choose colorful dash color
+    const colors = [
+      'rgba(59, 130, 246, 0.8)',   // Blue
+      'rgba(239, 68, 68, 0.8)',    // Red
+      'rgba(245, 158, 11, 0.8)',   // Yellow
+      'rgba(156, 163, 175, 0.6)'    // Grey
+    ];
+    this.color = colors[Math.floor(Math.random() * colors.length)];
+    this.length = Math.random() * 8 + 6; // Dash length
+    this.width = Math.random() * 1.5 + 1.2; // Dash thickness
+    this.life = 0;
+    this.maxLife = Math.random() * 300 + 200;
+  }
+
+  draw(ctx) {
+    ctx.beginPath();
+    const speed = Math.hypot(this.vx, this.vy);
+    if (speed > 0) {
+      const dx = (this.vx / speed) * this.length;
+      const dy = (this.vy / speed) * this.length;
+      ctx.moveTo(this.x, this.y);
+      ctx.lineTo(this.x - dx, this.y - dy);
+    } else {
+      ctx.moveTo(this.x, this.y);
+      ctx.lineTo(this.x - this.length, this.y);
+    }
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = this.width;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  }
+
+  update() {
+    const cx = this.canvas.width / 2;
+    const cy = this.canvas.height / 2;
+    const dx = this.x - cx;
+    const dy = this.y - cy;
+    const dist = Math.hypot(dx, dy);
+    
+    if (dist > 5) {
+      const outX = dx / dist;
+      const outY = dy / dist;
+      const tangentX = -dy / dist;
+      const tangentY = dx / dist;
+      
+      // Update velocity vector with outward + spiral components
+      this.vx = outX * this.speed + tangentX * this.vortexSpeed;
+      this.vy = outY * this.speed + tangentY * this.vortexSpeed;
+    }
+    
+    this.x += this.vx;
+    this.y += this.vy;
+    this.life++;
+    
+    // Reset if it goes off screen or lifetime ends
+    if (
+      this.x < -20 || 
+      this.x > this.canvas.width + 20 || 
+      this.y < -20 || 
+      this.y > this.canvas.height + 20 || 
+      this.life > this.maxLife
+    ) {
+      this.reset(false);
+    }
+  }
+}
+
 // Generate Particle Array
 function initParticles() {
   particles = [];
   for (let i = 0; i < PARTICLE_COUNT; i++) {
     particles.push(new Particle());
   }
+  
+  landingParticles = [];
+  for (let i = 0; i < LANDING_PARTICLE_COUNT; i++) {
+    landingParticles.push(new LandingParticle(canvas));
+  }
 }
 
-// Animation Loop (No connecting lines to align exactly with Google Antigravity's look)
+// Animation Loop (Dashes on landing page, interactive dots on logged-in page)
 function animateParticles() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Keep animation alive even when user is inactive (no mouse moves for > 4 seconds)
-  if (mouse.x !== null && mouse.y !== null && (Date.now() - lastMouseMove < 4000)) {
-    activeAttractor.x = mouse.x;
-    activeAttractor.y = mouse.y;
+  if (currentUser === null) {
+    landingParticles.forEach(p => {
+      p.update();
+      p.draw(ctx);
+    });
   } else {
-    // Inactive or mouse off-screen: wander the attractor using a Lissajous curve
-    const time = Date.now() * 0.001;
-    activeAttractor.x = canvas.width / 2 + Math.cos(time * 0.8) * (canvas.width * 0.35);
-    activeAttractor.y = canvas.height / 2 + Math.sin(time * 0.6) * (canvas.height * 0.35);
+    // Keep animation alive even when user is inactive (no mouse moves for > 4 seconds)
+    if (mouse.x !== null && mouse.y !== null && (Date.now() - lastMouseMove < 4000)) {
+      activeAttractor.x = mouse.x;
+      activeAttractor.y = mouse.y;
+    } else {
+      // Inactive or mouse off-screen: wander the attractor using a Lissajous curve
+      const time = Date.now() * 0.001;
+      activeAttractor.x = canvas.width / 2 + Math.cos(time * 0.8) * (canvas.width * 0.35);
+      activeAttractor.y = canvas.height / 2 + Math.sin(time * 0.6) * (canvas.height * 0.35);
+    }
+    
+    particles.forEach(p => {
+      p.update();
+      p.draw();
+    });
   }
-  
-  particles.forEach(p => {
-    p.update();
-    p.draw();
-  });
   
   requestAnimationFrame(animateParticles);
 }
