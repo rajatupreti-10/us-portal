@@ -8,7 +8,8 @@ create table if not exists public.logs (
   title text,                  -- complaint title
   description text,            -- complaint details
   status text,                 -- 'Open', 'Acknowledged', 'In Progress', 'Closed'
-  timestamp bigint not null    -- epoch milliseconds timestamp
+  timestamp bigint not null,   -- epoch milliseconds timestamp
+  comment text                 -- partner's response comment (for complaints)
 );
 
 -- Enable Row Level Security (RLS)

@@ -1117,3 +1117,52 @@ input[type="text"]:focus {
     gap: 32px;
   }
 }
+
+/* Comment Section inside Complaint Card */
+.card-comment-section {
+  background: rgba(0, 0, 0, 0.03);
+  border-left: 2px solid var(--theme-primary);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 10px;
+}
+
+/* Aadya's / Rajat's dynamic comment colors */
+body.theme-aadya .card-comment-section {
+  background: rgba(244, 63, 94, 0.02);
+  border-left-color: var(--color-aadya);
+}
+
+body.theme-rajat .card-comment-section {
+  background: rgba(59, 130, 246, 0.02);
+  border-left-color: var(--color-rajat);
+}
+
+.comment-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dark);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.comment-text {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--text-sub);
+  white-space: pre-wrap;
+}
+
+/* Comment Action Button */
+.btn-action-comment {
+  border-color: var(--text-dark);
+  color: var(--text-dark);
+}
+
+.btn-action-comment:hover {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: var(--text-main);
+  color: var(--text-main);
+}

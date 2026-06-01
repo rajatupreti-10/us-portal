@@ -30,16 +30,22 @@ const cardTriggerComplaint = document.getElementById('card-trigger-complaint');
 
 const modalAppreciation = document.getElementById('modal-appreciation');
 const modalComplaint = document.getElementById('modal-complaint');
+const modalComment = document.getElementById('modal-comment');
 
 const btnCloseAppreciation = document.getElementById('btn-close-appreciation');
 const btnCloseComplaint = document.getElementById('btn-close-complaint');
+const btnCloseComment = document.getElementById('btn-close-comment');
 
 const btnSubmitAppreciation = document.getElementById('btn-submit-appreciation');
 const btnSubmitComplaint = document.getElementById('btn-submit-complaint');
+const btnSubmitComment = document.getElementById('btn-submit-comment');
 
 const inputAppreciationMsg = document.getElementById('input-appreciation-msg');
 const inputComplaintTitle = document.getElementById('input-complaint-title');
 const inputComplaintDesc = document.getElementById('input-complaint-desc');
+const inputCommentText = document.getElementById('input-comment-text');
+
+let activeCommentLogId = null;
 
 const feedContainer = document.getElementById('feed-container');
 const tabAllBtn = document.getElementById('tab-all');
@@ -624,10 +630,18 @@ function renderFeed() {
               Acknowledge Issue
             </button>
           `;
-        } else if (log.status === 'Acknowledged') {
-          actionsHTML = `
-            <button class="btn-status-action btn-action-progress" onclick="updateComplaintStatus('${log.id}', 'In Progress')">
-              Mark In Progress
+        } else {
+          if (log.status === 'Acknowledged') {
+            actionsHTML = `
+              <button class="btn-status-action btn-action-progress" onclick="updateComplaintStatus('${log.id}', 'In Progress')">
+                Mark In Progress
+              </button>
+            `;
+          }
+          // The option to add a comment is visible to the receiver after acknowledgement (Acknowledged or In Progress)
+          actionsHTML += `
+            <button class="btn-status-action btn-action-comment" onclick="openCommentModal('${log.id}')">
+              ${log.comment ? 'Edit Comment' : 'Add Comment'}
             </button>
           `;
         }
@@ -664,6 +678,12 @@ function renderFeed() {
         <div class="card-body">
           <h4 class="card-title">${escapeHTML(log.title)}</h4>
           <p class="card-description">${escapeHTML(log.description)}</p>
+          ${log.comment ? `
+            <div class="card-comment-section">
+              <span class="comment-label">${log.receiver}'s Comment:</span>
+              <p class="comment-text">${escapeHTML(log.comment)}</p>
+            </div>
+          ` : ''}
         </div>
         ${actionsHTML ? `<div class="card-actions-footer">${actionsHTML}</div>` : ''}
       `;
@@ -686,8 +706,43 @@ function escapeHTML(str) {
   );
 }
 
-// Expose state update globally for inline card onclick triggers
+function openCommentModal(id) {
+  activeCommentLogId = id;
+  const log = logs.find(l => l.id === id);
+  if (log) {
+    inputCommentText.value = log.comment || '';
+  }
+  openModal(modalComment);
+}
+
+async function submitComment() {
+  const commentText = inputCommentText.value.trim();
+  if (!activeCommentLogId) return;
+
+  try {
+    const { error } = await supabaseClient
+      .from('logs')
+      .update({ comment: commentText || null })
+      .eq('id', activeCommentLogId);
+    if (error) throw error;
+
+    // Update locally
+    const log = logs.find(l => l.id === activeCommentLogId);
+    if (log) {
+      log.comment = commentText || null;
+    }
+    
+    closeModal(modalComment);
+    renderFeed();
+  } catch (err) {
+    console.error('Failed to submit comment:', err);
+    alert('Failed to save comment to database: ' + err.message);
+  }
+}
+
+// Expose state updates globally for inline card onclick triggers
 window.updateComplaintStatus = updateComplaintStatus;
+window.openCommentModal = openCommentModal;
 
 // --- Bind Navigation Events & Load ---
 function setupEventListeners() {
@@ -713,9 +768,11 @@ function setupEventListeners() {
 
   btnCloseAppreciation.addEventListener('click', () => closeModal(modalAppreciation));
   btnCloseComplaint.addEventListener('click', () => closeModal(modalComplaint));
+  btnCloseComment.addEventListener('click', () => closeModal(modalComment));
 
   btnSubmitAppreciation.addEventListener('click', submitAppreciation);
   btnSubmitComplaint.addEventListener('click', submitComplaint);
+  btnSubmitComment.addEventListener('click', submitComment);
 
   // Tab controls
   const tabs = [
