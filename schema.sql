@@ -9,7 +9,8 @@ create table if not exists public.logs (
   description text,            -- complaint details
   status text,                 -- 'Open', 'Acknowledged', 'In Progress', 'Closed'
   timestamp bigint not null,   -- epoch milliseconds timestamp
-  comment text                 -- partner's response comment (for complaints)
+  comment text,                -- deprecated single comment
+  comments jsonb default '[]'::jsonb -- comments thread
 );
 
 -- Enable Row Level Security (RLS)

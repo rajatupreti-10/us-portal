@@ -1137,38 +1137,68 @@ input[type="text"]:focus {
 }
 
 /* Comment Section inside Complaint Card */
-.card-comment-section {
-  background: rgba(0, 0, 0, 0.03);
-  border-left: 2px solid var(--theme-primary);
+/* Comments Thread inside Card */
+.card-comments-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 14px;
+  border-top: 1px dashed var(--border-panel);
+  padding-top: 14px;
+}
+
+.comment-item {
+  background: rgba(0, 0, 0, 0.02);
+  border-left: 3px solid var(--text-dark);
   border-radius: 8px;
-  padding: 12px 14px;
-  margin-top: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-/* Aadya's / Rajat's dynamic comment colors */
-body.theme-aadya .card-comment-section {
-  background: rgba(244, 63, 94, 0.02);
-  border-left-color: var(--color-aadya);
+.comment-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-body.theme-rajat .card-comment-section {
-  background: rgba(59, 130, 246, 0.02);
-  border-left-color: var(--color-rajat);
-}
-
-.comment-label {
+.comment-item-sender {
   font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--text-dark);
-  display: block;
-  margin-bottom: 4px;
+  letter-spacing: 0.5px;
 }
 
-.comment-text {
+/* Specific sender accent colors */
+.comment-item-sender.sender-aadya {
+  color: var(--color-aadya);
+}
+.comment-item-sender.sender-rajat {
+  color: var(--color-rajat);
+}
+
+/* Dynamic border accents matching the commenter */
+.comment-item:has(.sender-aadya) {
+  border-left-color: var(--color-aadya);
+  background: rgba(244, 63, 94, 0.015);
+}
+
+.comment-item:has(.sender-rajat) {
+  border-left-color: var(--color-rajat);
+  background: rgba(59, 130, 246, 0.015);
+}
+
+.comment-item-timestamp {
+  font-size: 0.7rem;
+  color: var(--text-dark);
+}
+
+.comment-item-text {
   font-size: 0.9rem;
-  line-height: 1.4;
+  line-height: 1.45;
   color: var(--text-sub);
   white-space: pre-wrap;
 }

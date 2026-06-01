@@ -621,32 +621,22 @@ function renderFeed() {
 
       let actionsHTML = '';
 
-      // Determine contextual action button elements based on permission matrix
+      // Determine status action buttons (only visible to specific roles based on current status)
       if (isReceiver && log.status !== 'Closed') {
-        // Accused buttons
         if (log.status === 'Open') {
           actionsHTML = `
             <button class="btn-status-action btn-action-ack" onclick="updateComplaintStatus('${log.id}', 'Acknowledged')">
               Acknowledge Issue
             </button>
           `;
-        } else {
-          if (log.status === 'Acknowledged') {
-            actionsHTML = `
-              <button class="btn-status-action btn-action-progress" onclick="updateComplaintStatus('${log.id}', 'In Progress')">
-                Mark In Progress
-              </button>
-            `;
-          }
-          // The option to add a comment is visible to the receiver after acknowledgement (Acknowledged or In Progress)
-          actionsHTML += `
-            <button class="btn-status-action btn-action-comment" onclick="openCommentModal('${log.id}')">
-              ${log.comment ? 'Edit Comment' : 'Add Comment'}
+        } else if (log.status === 'Acknowledged') {
+          actionsHTML = `
+            <button class="btn-status-action btn-action-progress" onclick="updateComplaintStatus('${log.id}', 'In Progress')">
+              Mark In Progress
             </button>
           `;
         }
       } else if (isSender) {
-        // Raiser buttons
         if (log.status !== 'Closed') {
           actionsHTML = `
             <button class="btn-status-action btn-action-close" onclick="updateComplaintStatus('${log.id}', 'Closed')">
@@ -660,6 +650,16 @@ function renderFeed() {
             </button>
           `;
         }
+      }
+
+      // Add Comment button is visible to both sender and receiver once the complaint is Acknowledged, In Progress, or Closed
+      const isParticipant = isSender || isReceiver;
+      if (isParticipant && log.status !== 'Open') {
+        actionsHTML += `
+          <button class="btn-status-action btn-action-comment" onclick="openCommentModal('${log.id}')">
+            Add Comment
+          </button>
+        `;
       }
 
       card.innerHTML = `
@@ -678,10 +678,17 @@ function renderFeed() {
         <div class="card-body">
           <h4 class="card-title">${escapeHTML(log.title)}</h4>
           <p class="card-description">${escapeHTML(log.description)}</p>
-          ${log.comment ? `
-            <div class="card-comment-section">
-              <span class="comment-label">${log.receiver}'s Comment:</span>
-              <p class="comment-text">${escapeHTML(log.comment)}</p>
+          ${(log.comments && log.comments.length > 0) ? `
+            <div class="card-comments-thread">
+              ${log.comments.map(c => `
+                <div class="comment-item">
+                  <div class="comment-item-header">
+                    <span class="comment-item-sender sender-${c.sender.toLowerCase()}">${c.sender}</span>
+                    <span class="comment-item-timestamp">${formatDate(c.timestamp)}</span>
+                  </div>
+                  <p class="comment-item-text">${escapeHTML(c.text)}</p>
+                </div>
+              `).join('')}
             </div>
           ` : ''}
         </div>
@@ -708,29 +715,39 @@ function escapeHTML(str) {
 
 function openCommentModal(id) {
   activeCommentLogId = id;
-  const log = logs.find(l => l.id === id);
-  if (log) {
-    inputCommentText.value = log.comment || '';
-  }
+  inputCommentText.value = ''; // Always empty on load for new comment appending
   openModal(modalComment);
 }
 
 async function submitComment() {
   const commentText = inputCommentText.value.trim();
+  if (!commentText) {
+    alert('Please enter a comment!');
+    return;
+  }
   if (!activeCommentLogId) return;
+
+  const log = logs.find(l => l.id === activeCommentLogId);
+  if (!log) return;
+
+  const newComment = {
+    sender: currentUser,
+    text: commentText,
+    timestamp: Date.now()
+  };
+
+  // Append new comment to thread
+  const updatedComments = [...(log.comments || []), newComment];
 
   try {
     const { error } = await supabaseClient
       .from('logs')
-      .update({ comment: commentText || null })
+      .update({ comments: updatedComments })
       .eq('id', activeCommentLogId);
     if (error) throw error;
 
     // Update locally
-    const log = logs.find(l => l.id === activeCommentLogId);
-    if (log) {
-      log.comment = commentText || null;
-    }
+    log.comments = updatedComments;
     
     closeModal(modalComment);
     renderFeed();
