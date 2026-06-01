@@ -1012,3 +1012,81 @@ input[type="text"]:focus {
     font-size: 0.85rem;
   }
 }
+
+/* 
+  =========================================
+  Partner Identity Selector Grid (1-Click Login)
+  =========================================
+*/
+.partner-selector {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.partner-btn {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-panel);
+  border-radius: 16px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: transform var(--transition-medium), border-color var(--transition-medium), box-shadow var(--transition-medium), background var(--transition-medium);
+}
+
+.partner-btn span {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  transition: var(--transition-fast);
+}
+
+.partner-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #ffffff;
+  transition: var(--transition-medium);
+}
+
+/* Aadya Specific button styling */
+.partner-btn.btn-aadya .partner-avatar {
+  background: var(--color-aadya);
+  box-shadow: 0 4px 12px var(--color-aadya-glow);
+}
+
+.partner-btn.btn-aadya:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-aadya);
+  box-shadow: 0 10px 25px var(--color-aadya-glow);
+  background: rgba(244, 63, 94, 0.02);
+}
+
+/* Rajat Specific button styling */
+.partner-btn.btn-rajat .partner-avatar {
+  background: var(--color-rajat);
+  box-shadow: 0 4px 12px var(--color-rajat-glow);
+}
+
+.partner-btn.btn-rajat:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-rajat);
+  box-shadow: 0 10px 25px var(--color-rajat-glow);
+  background: rgba(59, 130, 246, 0.02);
+}
+
+.partner-btn:active {
+  transform: translateY(1px);
+}

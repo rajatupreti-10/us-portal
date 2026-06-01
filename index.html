@@ -23,17 +23,18 @@
       </header>
       
       <div class="form-group">
-        <label for="select-user">Select Your Identity</label>
-        <div class="custom-select-wrapper">
-          <select id="select-user">
-            <option value="" disabled selected>Who are you?</option>
-            <option value="Aadya">Aadya</option>
-            <option value="Rajat">Rajat</option>
-          </select>
+        <label>Select Your Identity</label>
+        <div class="partner-selector">
+          <button class="partner-btn btn-aadya" data-user="Aadya">
+            <div class="partner-avatar">A</div>
+            <span>Aadya</span>
+          </button>
+          <button class="partner-btn btn-rajat" data-user="Rajat">
+            <div class="partner-avatar">R</div>
+            <span>Rajat</span>
+          </button>
         </div>
       </div>
-      
-      <button class="action-btn btn-primary" id="btn-login">Enter Portal</button>
     </div>
   </div>
 

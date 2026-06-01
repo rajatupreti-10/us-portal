@@ -22,8 +22,6 @@ const playerNames = {
 // --- DOM Cache Elements ---
 const loginOverlay = document.getElementById('login-overlay');
 const portalContainer = document.getElementById('portal-container');
-const selectUser = document.getElementById('select-user');
-const btnLogin = document.getElementById('btn-login');
 const btnLogout = document.getElementById('btn-logout');
 const currentUserNameTag = document.getElementById('current-user-name');
 
@@ -224,9 +222,6 @@ function logout() {
   currentUser = null;
   localStorage.removeItem('us_portal_user');
   document.body.className = '';
-  
-  // Reset select input
-  selectUser.value = "";
   
   portalContainer.classList.add('hidden');
   loginOverlay.classList.remove('hidden');
@@ -588,22 +583,18 @@ window.updateComplaintStatus = updateComplaintStatus;
 
 // --- Bind Navigation Events & Load ---
 function setupEventListeners() {
-  // Apply theme class immediately on dropdown selection during login (white theme / black text)
-  selectUser.addEventListener('change', () => {
-    const selected = selectUser.value;
-    if (selected) {
-      document.body.className = `theme-${selected.toLowerCase()}`;
-    }
-  });
-
-  // Login flow
-  btnLogin.addEventListener('click', () => {
-    const selected = selectUser.value;
-    if (selected) {
-      login(selected);
-    } else {
-      alert('Please select an identity first.');
-    }
+  // Direct identity selection login flow
+  const partnerBtns = document.querySelectorAll('.partner-btn');
+  partnerBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const selected = btn.getAttribute('data-user');
+      if (selected) {
+        // Apply theme immediately
+        document.body.className = `theme-${selected.toLowerCase()}`;
+        // Log in
+        login(selected);
+      }
+    });
   });
 
   btnLogout.addEventListener('click', logout);
