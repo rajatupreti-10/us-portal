@@ -3,42 +3,245 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>US. // Connection Portal</title>
+  <title>US. // Private Couple Portal</title>
   <!-- Google Fonts for futuristic, clean design -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
   <!-- Interactive canvas particle layer -->
   <canvas id="canvas-background"></canvas>
 
-  <!-- 1. Authentication Login Screen Overlay -->
-  <div id="login-overlay" class="auth-overlay">
-    <div class="hero-container">
-      <header class="hero-header">
-        <h1 class="hero-title reveal-item">US.</h1>
-        <p class="hero-subtitle">Connecting Aadya & Rajat.</p>
-      </header>
-      
-      <div class="hero-actions-wrapper reveal-item">
-        <span class="hero-action-label">Please Select The User</span>
-        <div class="partner-selector">
-          <button class="partner-btn btn-aadya" data-user="Aadya">
-            <div class="partner-avatar">A</div>
-            <span>Aadya</span>
-          </button>
-          <button class="partner-btn btn-rajat" data-user="Rajat">
-            <div class="partner-avatar">R</div>
-            <span>Rajat</span>
-          </button>
+  <!-- ==================== 1. PUBLIC LANDING PAGE ==================== -->
+  <div id="landing-page" class="landing-wrapper">
+    <!-- Landing Navigation -->
+    <header class="landing-navbar glass-panel">
+      <div class="nav-brand">
+        <h1 class="logo-text-nav">US<span>.</span></h1>
+      </div>
+      <div class="nav-actions">
+        <a href="#/login" class="action-btn btn-secondary" id="landing-btn-login">Login</a>
+        <a href="#/signup" class="action-btn btn-primary" id="landing-btn-signup-nav">Get Started</a>
+      </div>
+    </header>
+
+    <!-- Hero Content -->
+    <section class="landing-hero">
+      <div class="hero-text-content">
+        <div class="badge-feature">✨ Private 2-Person Ecosystem</div>
+        <h2 class="hero-main-title">Turn friction <br>into <span class="gradient-text">connection.</span></h2>
+        <p class="hero-subtitle">A private portal just for the two of you.</p>
+        <p class="hero-desc">
+          A secure, shared workspace for couples to resolve complaints constructively, express appreciations endlessly, and align together away from the noise of everyday messaging chats.
+        </p>
+        <div class="hero-ctas">
+          <a href="#/signup" class="action-btn btn-primary btn-lg" id="landing-btn-signup-hero">Sign Up for Free</a>
         </div>
+      </div>
+
+      <!-- App Mockup Preview Section -->
+      <div class="hero-mockup-container" id="preview-section">
+        <div class="mockup-frame glass-panel">
+          <div class="mockup-header">
+            <span class="mockup-dot red"></span>
+            <span class="mockup-dot yellow"></span>
+            <span class="mockup-dot green"></span>
+            <span class="mockup-title">US. Connection Portal (Preview)</span>
+          </div>
+          
+          <div class="mockup-body" id="mockup-feed-container">
+            <!-- Mockup Feed Card 1 -->
+            <div class="mockup-card appreciation animate-card" id="mock-appreciation-1">
+              <div class="m-card-header">
+                <span class="m-badge appreciation">❤ Appreciation</span>
+                <span class="m-time">Just now</span>
+              </div>
+              <p class="m-text">"Thank you for brewing coffee this morning when you saw I was running late. It saved my day!"</p>
+              <div class="m-footer">From <strong>Aadya</strong> to <strong>Rajat</strong></div>
+            </div>
+            <!-- Mockup Feed Card 2 -->
+            <div class="mockup-card complaint animate-card" id="mock-complaint-1">
+              <div class="m-card-header">
+                <span class="m-badge complaint">⚠ Complaint</span>
+                <span class="m-status ack" id="mock-status-tag">Acknowledged</span>
+              </div>
+              <h4 class="m-title">Leaving wet towels on the bed</h4>
+              <p class="m-text">"It makes the mattress damp and smells musty. Please hang them on the rack!"</p>
+              <div class="m-footer">From <strong>Rajat</strong> to <strong>Aadya</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ==================== 2. DEDICATED LOGIN PAGE ==================== -->
+  <div id="login-page" class="auth-page-wrapper hidden">
+    <div class="auth-card glass-panel">
+      <a href="#/" class="btn-exit-auth" id="btn-close-login">← home</a>
+
+      <div id="login-container">
+        <h3 class="auth-form-title">Welcome Back</h3>
+        <p class="auth-form-subtitle">Log in to check your shared connection portal.</p>
+        
+        <form id="login-form" onsubmit="return false;">
+          <div class="form-group">
+            <label for="login-email">Email Address</label>
+            <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="username">
+          </div>
+
+          <div class="form-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" placeholder="your password" required autocomplete="current-password">
+          </div>
+
+          <button type="submit" class="action-btn btn-primary btn-block" id="btn-submit-login">Log In</button>
+        </form>
+
+        <p class="auth-switch-text">New to US.? <a href="#/signup" class="btn-link" id="btn-switch-to-signup">Create a Portal</a></p>
       </div>
     </div>
   </div>
 
-  <!-- 2. Main Portal Interface (hidden initially, toggled by JS) -->
+  <!-- ==================== 3. DEDICATED SIGNUP PAGE ==================== -->
+  <div id="signup-page" class="auth-page-wrapper hidden">
+    <div class="auth-card glass-panel">
+      <a href="#/" class="btn-exit-auth" id="btn-close-signup">← home</a>
+
+      <div id="signup-container">
+        <h3 class="auth-form-title" id="signup-title-text">Create Your Portal</h3>
+        <p class="auth-form-subtitle" id="signup-subtitle-text">Start your private relationship workspace today.</p>
+        
+        <form id="signup-form" onsubmit="return false;">
+          <!-- Hidden field to hold invite couple id -->
+          <input type="hidden" id="signup-invite-couple-id" value="">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="signup-first-name">First Name *</label>
+              <input type="text" id="signup-first-name" placeholder="Alex" required autocomplete="given-name">
+            </div>
+            <div class="form-group">
+              <label for="signup-last-name">Last Name</label>
+              <input type="text" id="signup-last-name" placeholder="Smith" autocomplete="family-name">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="signup-dob">Date of Birth *</label>
+              <input type="date" id="signup-dob" required>
+            </div>
+            <div class="form-group">
+              <label for="signup-gender">Gender *</label>
+              <select id="signup-gender" required>
+                <option value="" disabled selected>Select gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="signup-email">Email Address *</label>
+            <input type="email" id="signup-email" placeholder="alex@example.com" required autocomplete="email">
+          </div>
+
+          <div class="form-group">
+            <label for="signup-password">Password *</label>
+            <input type="password" id="signup-password" placeholder="choose password" required minlength="6" autocomplete="new-password">
+            <span class="password-hint">Min. 6 characters</span>
+          </div>
+
+          <button type="submit" class="action-btn btn-primary btn-block" id="btn-submit-signup">Register Account</button>
+        </form>
+
+        <p class="auth-switch-text">Already have an account? <a href="#/login" class="btn-link" id="btn-switch-to-login">Login</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 4. PARTNER PAIRING WAITING ROOM ==================== -->
+  <div id="waiting-room" class="portal-wrapper hidden">
+    <!-- Navbar -->
+    <header class="navbar glass-panel">
+      <div class="nav-brand">
+        <h1 class="logo-text-nav">US<span>.</span></h1>
+      </div>
+      <div class="nav-user-controls">
+        <span class="user-greeting" id="waiting-room-greeting">Hello</span>
+        <button class="nav-logout-btn btn-logout" title="Sign Out">
+          <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+          </svg>
+          Logout
+        </button>
+      </div>
+    </header>
+
+    <main class="waiting-container">
+      <div class="waiting-card glass-panel">
+        <div class="waiting-card-glow"></div>
+        <div class="waiting-icon-pulse">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+        </div>
+        
+        <h2>Your portal is almost ready.</h2>
+        <p class="waiting-instruction">Invite your partner to unlock the platform.</p>
+
+        <!-- Dynamic Pairing Link Copy Section -->
+        <div class="invite-section">
+          <label>Your Unique Pairing Link</label>
+          <div class="copy-input-group">
+            <input type="text" id="invite-link-display" readonly value="Generating link...">
+            <button class="action-btn btn-primary" id="btn-copy-link">
+              Copy
+            </button>
+          </div>
+        </div>
+
+        <!-- Sharing Channels -->
+        <div class="invite-channels">
+          <!-- WhatsApp Sharing -->
+          <button class="action-btn btn-whatsapp" id="btn-whatsapp-invite">
+            <svg class="icon-whatsapp" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 0 0 1.333 4.982L2 22l5.13-1.348a9.949 9.949 0 0 0 4.877 1.28c5.508 0 9.99-4.479 9.99-9.986C22.006 6.478 17.521 2 12.012 2zm0 18.293a8.276 8.276 0 0 1-4.222-1.157l-.303-.18-3.138.823.839-3.058-.197-.314a8.27 8.27 0 0 1-1.267-4.423c.001-4.566 3.72-8.281 8.288-8.281 4.562 0 8.278 3.717 8.278 8.283-.001 4.569-3.72 8.288-8.278 8.288zm4.542-6.208c-.248-.124-1.472-.727-1.7-.81-.228-.083-.393-.124-.559.124-.166.248-.641.81-.785.975-.145.166-.29.185-.538.061-.248-.124-1.047-.385-1.993-1.23-.737-.657-1.235-1.469-1.38-1.717-.145-.248-.015-.383.11-.506.112-.11.248-.29.372-.435.124-.145.166-.248.248-.414.083-.166.041-.31-.02-.435-.062-.124-.559-1.348-.766-1.847-.201-.484-.407-.419-.559-.427l-.476-.008c-.166 0-.435.062-.663.31-.228.248-.87.85-.87 2.072 0 1.222.89 2.402.99 2.567.1.166 1.752 2.675 4.244 3.75 1.74.75 2.407.828 3.264.7.534-.078 1.472-.602 1.68-1.185.207-.582.207-1.08.145-1.185-.062-.105-.228-.166-.476-.29z"/>
+            </svg>
+            Invite via WhatsApp
+          </button>
+
+          <!-- Email Sharing -->
+          <div class="email-invite-box">
+            <div class="form-group">
+              <label for="invite-email-input">Or Invite via Email</label>
+              <div class="copy-input-group">
+                <input type="email" id="invite-email-input" placeholder="partner@email.com">
+                <button class="action-btn btn-secondary" id="btn-email-invite">Send</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="waiting-footer">
+          <div class="status-pulse-indicator">
+            <span class="pulse-dot"></span>
+            <span class="status-text">Listening for partner to join...</span>
+          </div>
+          <button class="btn-link" id="btn-manual-refresh-pair">Refresh pairing status</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ==================== 5. MAIN DASHBOARD PORTAL ==================== -->
   <div id="portal-container" class="portal-wrapper hidden">
     <!-- Header Navbar -->
     <header class="navbar glass-panel">
@@ -47,11 +250,12 @@
       </div>
       <div class="nav-user-controls">
         <span class="user-greeting">Hello, <strong id="current-user-name">User</strong></span>
-        <button class="nav-logout-btn" id="btn-logout" title="Switch User">
+        <span id="partner-connection-badge" class="partner-connection-badge">Connected</span>
+        <button class="nav-logout-btn btn-logout" title="Sign Out">
           <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
           </svg>
-          Switch Partner
+          Logout
         </button>
       </div>
     </header>
@@ -139,17 +343,19 @@
     </main>
   </div>
 
-  <!-- 3. Appreciation Modal Creation Sheet -->
+  <!-- ==================== 6. MODALS (Creation Sheets) ==================== -->
+  
+  <!-- Appreciation Modal -->
   <div id="modal-appreciation" class="modal-overlay hidden">
     <div class="modal-content glass-panel">
       <header class="modal-header">
         <h3><span class="header-icon-gold">❤</span> Drop Appreciation</h3>
         <button class="btn-close-modal" id="btn-close-appreciation">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </header>
       <div class="modal-body">
-        <p class="modal-instruction">Write a message to highlight what you appreciate about your partner today.</p>
+        <p class="modal-instruction" id="appreciation-instruction-text">Write a message to highlight what you appreciate about your partner today.</p>
         <div class="form-group">
           <label for="input-appreciation-msg">Your Message</label>
           <textarea id="input-appreciation-msg" rows="5" placeholder="Thank you for..." maxlength="500"></textarea>
@@ -159,17 +365,17 @@
     </div>
   </div>
 
-  <!-- 4. Complaint Modal Creation Sheet -->
+  <!-- Complaint Modal -->
   <div id="modal-complaint" class="modal-overlay hidden">
     <div class="modal-content glass-panel">
       <header class="modal-header">
         <h3><span class="header-icon-crimson">⚠</span> Raise a Complaint</h3>
         <button class="btn-close-modal" id="btn-close-complaint">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </header>
       <div class="modal-body">
-        <p class="modal-instruction">Explain the issue constructively so your partner can acknowledge and work on it.</p>
+        <p class="modal-instruction" id="complaint-instruction-text">Explain the issue constructively so your partner can acknowledge and work on it.</p>
         <div class="form-group">
           <label for="input-complaint-title">Title / Grievance Summary</label>
           <input type="text" id="input-complaint-title" placeholder="E.g., Leaving dishes in sink" maxlength="60" />
@@ -183,13 +389,13 @@
     </div>
   </div>
 
-  <!-- 5. Comment Modal Creation Sheet -->
+  <!-- Comment Modal -->
   <div id="modal-comment" class="modal-overlay hidden">
     <div class="modal-content glass-panel">
       <header class="modal-header">
         <h3>💬 Add Response Comment</h3>
         <button class="btn-close-modal" id="btn-close-comment">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </header>
       <div class="modal-body">
@@ -203,8 +409,9 @@
     </div>
   </div>
 
+  <!-- Supabase & Custom Script Setup -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

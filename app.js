@@ -5,25 +5,57 @@
  */
 
 // --- App State & Data Management ---
-let currentUser = null;
-let currentTab = 'all'; // 'all', 'inbox', 'outbox'
+let currentUser = null;         // Supabase Auth User object
+let currentUserProfile = null;  // Profile from public.users
+let partnerProfile = null;      // Partner profile from public.users
+let currentTab = 'all';         // 'all', 'inbox', 'outbox'
 let logs = [];
+let usersChannel = null;        // Real-time channel for partner-join sync
 
 // Initialize Supabase Client
 const { createClient } = supabase;
 const supabaseClient = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
-// Player Custom Names
-const playerNames = {
-  X: 'Player X',
-  O: 'Player O'
-};
-
 // --- DOM Cache Elements ---
-const loginOverlay = document.getElementById('login-overlay');
+// Page Container Views
+const landingPage = document.getElementById('landing-page');
+const loginPage = document.getElementById('login-page');
+const signupPage = document.getElementById('signup-page');
+const waitingRoom = document.getElementById('waiting-room');
 const portalContainer = document.getElementById('portal-container');
-const btnLogout = document.getElementById('btn-logout');
+
+// Forms & Inputs
+const signupForm = document.getElementById('signup-form');
+const loginForm = document.getElementById('login-form');
+
+const signupFirstName = document.getElementById('signup-first-name');
+const signupLastName = document.getElementById('signup-last-name');
+const signupDob = document.getElementById('signup-dob');
+const signupGender = document.getElementById('signup-gender');
+const signupEmail = document.getElementById('signup-email');
+const signupPassword = document.getElementById('signup-password');
+const signupInviteCoupleId = document.getElementById('signup-invite-couple-id');
+
+const loginEmail = document.getElementById('login-email');
+const loginPassword = document.getElementById('login-password');
+
+// Control Buttons
+const btnSubmitSignup = document.getElementById('btn-submit-signup');
+const btnSubmitLogin = document.getElementById('btn-submit-login');
+const btnLogoutList = document.querySelectorAll('.btn-logout');
+
+// Waiting Room Controls
+const waitingRoomGreeting = document.getElementById('waiting-room-greeting');
+const inviteLinkDisplay = document.getElementById('invite-link-display');
+const btnCopyLink = document.getElementById('btn-copy-link');
+const btnWhatsappInvite = document.getElementById('btn-whatsapp-invite');
+const inviteEmailInput = document.getElementById('invite-email-input');
+const btnEmailInvite = document.getElementById('btn-email-invite');
+const btnManualRefreshPair = document.getElementById('btn-manual-refresh-pair');
+
+// Dashboard Controls
 const currentUserNameTag = document.getElementById('current-user-name');
+const partnerConnectionBadge = document.getElementById('partner-connection-badge');
 
 const cardTriggerAppreciation = document.getElementById('card-trigger-appreciation');
 const cardTriggerComplaint = document.getElementById('card-trigger-complaint');
@@ -61,12 +93,10 @@ const canvas = document.getElementById('canvas-background');
 const ctx = canvas.getContext('2d');
 
 let particles = [];
-let landingParticles = [];
 let mouse = { x: null, y: null };
 let activeAttractor = { x: null, y: null };
 let lastMouseMove = Date.now();
 const PARTICLE_COUNT = 800; // Dense dots to replicate antigravity welcome screen
-const LANDING_PARTICLE_COUNT = 150; // Dash count for vortex
 const REPULSION_RADIUS = 150;
 const REPULSION_FORCE = 4.5;
 const FRICTION = 0.94;
@@ -154,123 +184,20 @@ class Particle {
   }
 }
 
-// Landing Particle Class (Vortex of colorful dashes)
-class LandingParticle {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.reset(true); // Initial load spreads them out
-  }
-
-  reset(initSpread = false) {
-    const cx = this.canvas.width / 2;
-    const cy = this.canvas.height / 2;
-    
-    this.angle = Math.random() * Math.PI * 2;
-    this.speed = Math.random() * 0.6 + 0.3; // Outward speed
-    this.vortexSpeed = (Math.random() * 0.15 + 0.05) * (Math.random() > 0.5 ? 1 : -1); // Vortex spin
-    
-    if (initSpread) {
-      // Spread out randomly between center and screen edge
-      const maxDist = Math.max(this.canvas.width, this.canvas.height) * 0.65;
-      const dist = Math.random() * maxDist;
-      this.x = cx + Math.cos(this.angle) * dist;
-      this.y = cy + Math.sin(this.angle) * dist;
-    } else {
-      // Start directly at center
-      this.x = cx;
-      this.y = cy;
-    }
-    
-    this.vx = Math.cos(this.angle) * this.speed;
-    this.vy = Math.sin(this.angle) * this.speed;
-    
-    // Choose colorful dash color
-    const colors = [
-      'rgba(59, 130, 246, 0.8)',   // Blue
-      'rgba(239, 68, 68, 0.8)',    // Red
-      'rgba(245, 158, 11, 0.8)',   // Yellow
-      'rgba(156, 163, 175, 0.6)'    // Grey
-    ];
-    this.color = colors[Math.floor(Math.random() * colors.length)];
-    this.length = Math.random() * 8 + 6; // Dash length
-    this.width = Math.random() * 1.5 + 1.2; // Dash thickness
-    this.life = 0;
-    this.maxLife = Math.random() * 300 + 200;
-  }
-
-  draw(ctx) {
-    ctx.beginPath();
-    const speed = Math.hypot(this.vx, this.vy);
-    if (speed > 0) {
-      const dx = (this.vx / speed) * this.length;
-      const dy = (this.vy / speed) * this.length;
-      ctx.moveTo(this.x, this.y);
-      ctx.lineTo(this.x - dx, this.y - dy);
-    } else {
-      ctx.moveTo(this.x, this.y);
-      ctx.lineTo(this.x - this.length, this.y);
-    }
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth = this.width;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-  }
-
-  update() {
-    const cx = this.canvas.width / 2;
-    const cy = this.canvas.height / 2;
-    const dx = this.x - cx;
-    const dy = this.y - cy;
-    const dist = Math.hypot(dx, dy);
-    
-    if (dist > 5) {
-      const outX = dx / dist;
-      const outY = dy / dist;
-      const tangentX = -dy / dist;
-      const tangentY = dx / dist;
-      
-      // Update velocity vector with outward + spiral components
-      this.vx = outX * this.speed + tangentX * this.vortexSpeed;
-      this.vy = outY * this.speed + tangentY * this.vortexSpeed;
-    }
-    
-    this.x += this.vx;
-    this.y += this.vy;
-    this.life++;
-    
-    // Reset if it goes off screen or lifetime ends
-    if (
-      this.x < -20 || 
-      this.x > this.canvas.width + 20 || 
-      this.y < -20 || 
-      this.y > this.canvas.height + 20 || 
-      this.life > this.maxLife
-    ) {
-      this.reset(false);
-    }
-  }
-}
-
 // Generate Particle Array
 function initParticles() {
   particles = [];
   for (let i = 0; i < PARTICLE_COUNT; i++) {
     particles.push(new Particle());
   }
-  
-  landingParticles = [];
-  for (let i = 0; i < LANDING_PARTICLE_COUNT; i++) {
-    landingParticles.push(new LandingParticle(canvas));
-  }
 }
 
-// Animation Loop (Dashes on landing page, interactive dots on logged-in page)
+// Animation Loop (interactive dots on logged-in/auth pages)
 function animateParticles() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  if (currentUser === null) {
-    // No particles rendered on landing page (solid white background)
-  } else {
+  // Show particles only when logged in (dashboard & waiting room)
+  if (currentUser !== null) {
     // Keep animation alive even when user is inactive (no mouse moves for > 4 seconds)
     if (mouse.x !== null && mouse.y !== null && (Date.now() - lastMouseMove < 4000)) {
       activeAttractor.x = mouse.x;
@@ -292,8 +219,54 @@ function animateParticles() {
 }
 
 // --- Helper Functions ---
-function getPartnerName(user) {
-  return user === 'Aadya' ? 'Rajat' : 'Aadya';
+let heartInterval = null;
+
+function startFloatingHearts() {
+  if (heartInterval) return;
+  
+  const activeAuthPage = window.location.hash === '#/login' ? loginPage : signupPage;
+  if (!activeAuthPage) return;
+  
+  let container = activeAuthPage.querySelector('.heart-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.className = 'heart-container';
+    activeAuthPage.appendChild(container);
+  }
+
+  heartInterval = setInterval(() => {
+    const heart = document.createElement('div');
+    heart.className = 'floating-heart';
+    heart.innerHTML = '❤️';
+    
+    const size = Math.random() * 12 + 10; // 10px to 22px
+    const left = Math.random() * 100;
+    const duration = Math.random() * 6 + 6; // 6s to 12s
+    const opacity = Math.random() * 0.12 + 0.04; // 0.04 to 0.16 (very subtle)
+    
+    heart.style.left = `${left}%`;
+    heart.style.fontSize = `${size}px`;
+    heart.style.animationDuration = `${duration}s`;
+    heart.style.setProperty('--target-opacity', opacity);
+    
+    container.appendChild(heart);
+    
+    setTimeout(() => {
+      heart.remove();
+    }, duration * 1000);
+  }, 300); // Spawns hearts 3x faster (every 300ms)
+}
+
+function stopFloatingHearts() {
+  if (heartInterval) {
+    clearInterval(heartInterval);
+    heartInterval = null;
+  }
+  document.querySelectorAll('.heart-container').forEach(c => c.remove());
+}
+
+function getPartnerName() {
+  return partnerProfile ? partnerProfile.first_name : 'Partner';
 }
 
 function formatDate(timestamp) {
@@ -303,42 +276,338 @@ function formatDate(timestamp) {
   return `${dateObj.toLocaleDateString('en-US', optionsDate)} - ${dateObj.toLocaleTimeString('en-US', optionsTime)}`;
 }
 
-// --- Authentication Session Control ---
-function checkSession() {
-  const storedUser = localStorage.getItem('us_portal_user');
-  if (storedUser === 'Aadya' || storedUser === 'Rajat') {
-    login(storedUser);
+// --- Dynamic Route Handler ---
+async function router() {
+  const hash = window.location.hash || '#/';
+  const path = hash.split('?')[0];
+  const queryStr = hash.split('?')[1] || '';
+  const params = new URLSearchParams(queryStr);
+  const inviteCoupleId = params.get('invite_couple_id');
+
+  // Hide all screens
+  landingPage.classList.add('hidden');
+  loginPage.classList.add('hidden');
+  signupPage.classList.add('hidden');
+  waitingRoom.classList.add('hidden');
+  portalContainer.classList.add('hidden');
+
+  stopFloatingHearts();
+
+  // Cancel any active subscriptions
+  if (usersChannel) {
+    usersChannel.unsubscribe();
+    usersChannel = null;
+  }
+
+  // Redirect / Route logic based on auth
+  if (currentUser) {
+    // If logged in but profile hasn't loaded yet, show a blank view temporarily
+    if (!currentUserProfile) {
+      console.log("Session exists but user profile not loaded yet. Waiting...");
+      return;
+    }
+
+    // Check if the user is paired or unpaired
+    const { data: coupleUsers, error } = await supabaseClient
+      .from('users')
+      .select('*')
+      .eq('couple_id', currentUserProfile.couple_id);
+
+    if (error) {
+      console.error("Router error fetching couple status:", error);
+      return;
+    }
+
+    if (coupleUsers.length === 1) {
+      // Unpaired -> Enforce waiting room routing
+      if (path !== '#/waiting-room') {
+        window.location.hash = '#/waiting-room';
+        return;
+      }
+
+      waitingRoom.classList.remove('hidden');
+      waitingRoomGreeting.innerHTML = `Hello, <strong>${currentUserProfile.first_name}</strong>`;
+      
+      // Update invite link to point to signup hash route
+      const inviteLink = window.location.origin + window.location.pathname + `#/signup?invite_couple_id=${currentUserProfile.couple_id}`;
+      inviteLinkDisplay.value = inviteLink;
+
+      applyUserTheme(currentUserProfile.gender);
+      subscribeToPartnerJoin();
+    } else if (coupleUsers.length >= 2) {
+      // Paired -> Enforce dashboard routing
+      if (path !== '#/dashboard') {
+        window.location.hash = '#/dashboard';
+        return;
+      }
+
+      partnerProfile = coupleUsers.find(u => u.id !== currentUserProfile.id);
+      portalContainer.classList.remove('hidden');
+
+      currentUserNameTag.textContent = currentUserProfile.first_name;
+      partnerConnectionBadge.textContent = `Connected with ${partnerProfile.first_name}`;
+      applyUserTheme(currentUserProfile.gender);
+      loadLogs();
+    }
   } else {
-    logout();
+    // Guest Routing
+    if (path === '#/login') {
+      loginPage.classList.remove('hidden');
+      document.body.className = '';
+      startFloatingHearts();
+    } else if (path === '#/signup') {
+      signupPage.classList.remove('hidden');
+      document.body.className = '';
+      startFloatingHearts();
+
+      if (inviteCoupleId) {
+        signupInviteCoupleId.value = inviteCoupleId;
+        
+        // Fetch inviter's first name for high visual delight
+        const { data, error: fetchErr } = await supabaseClient
+          .from('users')
+          .select('first_name')
+          .eq('couple_id', inviteCoupleId)
+          .limit(1);
+
+        if (!fetchErr && data && data.length > 0) {
+          const inviterName = data[0].first_name;
+          document.getElementById('signup-title-text').textContent = `Accept ${inviterName}'s Invitation`;
+          document.getElementById('signup-subtitle-text').textContent = `Join ${inviterName} in your private relationship portal.`;
+        }
+      } else {
+        // Reset defaults
+        document.getElementById('signup-title-text').textContent = `Create Your Portal`;
+        document.getElementById('signup-subtitle-text').textContent = `Start your private relationship workspace today.`;
+        signupInviteCoupleId.value = '';
+      }
+    } else {
+      // Force base landing hash
+      if (hash !== '#/') {
+        window.location.hash = '#/';
+        return;
+      }
+      landingPage.classList.remove('hidden');
+      document.body.className = '';
+    }
   }
 }
 
-function login(username) {
-  currentUser = username;
-  localStorage.setItem('us_portal_user', username);
-  
-  // Set personalized themes on document body
-  document.body.className = `theme-${username.toLowerCase()}`;
-  
-  // Update header labels
-  currentUserNameTag.textContent = username;
-  
-  // Toggle Visibility
-  loginOverlay.classList.add('hidden');
-  portalContainer.classList.remove('hidden');
-  
-  // Refresh feed list
-  loadLogs();
-  renderFeed();
+function applyUserTheme(gender) {
+  if (gender === 'Female') {
+    document.body.className = 'theme-aadya';
+  } else {
+    // Male or Other gets blue theme
+    document.body.className = 'theme-rajat';
+  }
 }
 
-function logout() {
-  currentUser = null;
-  localStorage.removeItem('us_portal_user');
-  document.body.className = '';
+// --- Authentication Session Control ---
+async function checkSession() {
+  const { data: { session }, error } = await supabaseClient.auth.getSession();
+  if (error) {
+    console.error("Session check error:", error);
+    router();
+    return;
+  }
   
-  portalContainer.classList.add('hidden');
-  loginOverlay.classList.remove('hidden');
+  if (session) {
+    currentUser = session.user;
+    await loadUserProfile(session.user.id);
+  } else {
+    router();
+  }
+}
+
+async function loadUserProfile(userId) {
+  try {
+    const { data: profiles, error } = await supabaseClient
+      .from('users')
+      .select('*')
+      .eq('id', userId);
+    
+    if (error) throw error;
+    
+    if (profiles && profiles.length > 0) {
+      currentUserProfile = profiles[0];
+      await router();
+    } else {
+      console.warn("User has auth credentials but no profile in public.users. Logging out.");
+      await handleLogout();
+    }
+  } catch (err) {
+    console.error("Failed to load user profile:", err);
+    alert("Error loading profile: " + err.message);
+  }
+}
+
+async function handleRegister(e) {
+  if (e) e.preventDefault();
+
+  const firstName = signupFirstName.value.trim();
+  const lastName = signupLastName.value.trim();
+  const dob = signupDob.value;
+  const gender = signupGender.value;
+  const email = signupEmail.value.trim();
+  const password = signupPassword.value;
+  const inviteCoupleId = signupInviteCoupleId.value;
+
+  if (!firstName || !dob || !gender || !email || !password) {
+    alert("Please fill in all required fields.");
+    return;
+  }
+
+  btnSubmitSignup.disabled = true;
+  btnSubmitSignup.textContent = "Registering...";
+
+  try {
+    // 1. Sign up user via Supabase Auth
+    const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+      email,
+      password
+    });
+
+    if (authError) throw authError;
+
+    if (!authData.user) {
+      throw new Error("No user object returned from signup.");
+    }
+
+    // 2. Generate or assign Couple ID
+    const coupleId = inviteCoupleId || 'couple_' + Date.now() + Math.random().toString(36).substr(2, 9);
+
+    // 3. Create public profile
+    const { error: profileError } = await supabaseClient
+      .from('users')
+      .insert([{
+        id: authData.user.id,
+        first_name: firstName,
+        last_name: lastName || null,
+        dob: dob,
+        gender: gender,
+        email: email,
+        couple_id: coupleId
+      }]);
+
+    if (profileError) throw profileError;
+
+    alert("Registration successful!");
+    
+    // Auth state triggers automatic routing
+    currentUser = authData.user;
+    await loadUserProfile(authData.user.id);
+  } catch (err) {
+    console.error("Signup failed:", err);
+    alert("Registration failed: " + err.message);
+    btnSubmitSignup.disabled = false;
+    btnSubmitSignup.textContent = "Register Account";
+  }
+}
+
+async function handleLogin(e) {
+  if (e) e.preventDefault();
+
+  const email = loginEmail.value.trim();
+  const password = loginPassword.value;
+
+  if (!email || !password) {
+    alert("Please fill in all fields.");
+    return;
+  }
+
+  btnSubmitLogin.disabled = true;
+  btnSubmitLogin.textContent = "Logging in...";
+
+  try {
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if (error) throw error;
+    
+    currentUser = data.user;
+    await loadUserProfile(data.user.id);
+  } catch (err) {
+    console.error("Login failed:", err);
+    alert("Login failed: " + err.message);
+  } finally {
+    btnSubmitLogin.disabled = false;
+    btnSubmitLogin.textContent = "Log In";
+  }
+}
+
+async function handleLogout() {
+  try {
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) throw error;
+  } catch (err) {
+    console.error("Failed to sign out:", err);
+  } finally {
+    currentUser = null;
+    currentUserProfile = null;
+    partnerProfile = null;
+    window.location.hash = '#/';
+  }
+}
+
+// --- Realtime Subscriptions ---
+function subscribeToPartnerJoin() {
+  if (usersChannel) {
+    usersChannel.unsubscribe();
+  }
+
+  usersChannel = supabaseClient
+    .channel('public:users')
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'users',
+      filter: `couple_id=eq.${currentUserProfile.couple_id}`
+    }, async (payload) => {
+      console.log("Realtime partner join event triggered:", payload.new);
+      partnerProfile = payload.new;
+      
+      // Auto-unlock & redirect
+      await loadUserProfile(currentUser.id);
+      
+      alert(`Success! ${partnerProfile.first_name} has joined. Your portal is now active.`);
+    })
+    .subscribe();
+}
+
+// --- Inviting & Pairing Logic ---
+function copyInviteLink() {
+  const inviteLink = inviteLinkDisplay.value;
+  navigator.clipboard.writeText(inviteLink).then(() => {
+    btnCopyLink.textContent = "Copied!";
+    setTimeout(() => { btnCopyLink.textContent = "Copy"; }, 2000);
+  }).catch(err => {
+    console.error("Clipboard copy failed:", err);
+    alert("Failed to copy link. Please manually copy the text in the input box.");
+  });
+}
+
+function inviteViaWhatsApp() {
+  const inviteLink = inviteLinkDisplay.value;
+  const message = `Hey! ${currentUserProfile.first_name} is inviting you to join their private couple's portal. It's a space for us to track our appreciations and resolve things better together. Click here to accept the invite and set up your account: ${inviteLink}`;
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+  window.open(whatsappUrl, '_blank');
+}
+
+function inviteViaEmail() {
+  const email = inviteEmailInput.value.trim();
+  if (!email) {
+    alert("Please enter your partner's email address.");
+    return;
+  }
+
+  const inviteLink = inviteLinkDisplay.value;
+  const subject = `Join my private couples portal on US.`;
+  const body = `Hey! ${currentUserProfile.first_name} is inviting you to join their private couple's portal. It's a space for us to track our appreciations and resolve things better together. Click here to accept the invite and set up your account: ${inviteLink}`;
+  
+  const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.open(mailtoUrl, '_blank');
 }
 
 // --- Modals Display Control ---
@@ -348,7 +617,6 @@ function openModal(modal) {
 
 function closeModal(modal) {
   modal.classList.add('hidden');
-  // Clear modal inputs
   const inputs = modal.querySelectorAll('input[type="text"], textarea');
   inputs.forEach(input => input.value = "");
 }
@@ -362,35 +630,15 @@ window.addEventListener('click', (e) => {
 
 // --- Supabase Database Operations ---
 async function loadLogs() {
-  try {
-    // Migrate legacy localstorage data to Supabase if present
-    const rawLocalLogs = localStorage.getItem('us_portal_logs');
-    if (rawLocalLogs) {
-      const localLogs = JSON.parse(rawLocalLogs);
-      if (localLogs && localLogs.length > 0) {
-        console.log(`Found ${localLogs.length} legacy logs in localStorage. Migrating to Supabase...`);
-        const { error } = await supabaseClient
-          .from('logs')
-          .insert(localLogs);
-        if (error) {
-          console.error('Failed to migrate local logs to Supabase:', error);
-        } else {
-          console.log('Migration successful. Clearing localStorage logs...');
-          localStorage.removeItem('us_portal_logs');
-        }
-      } else {
-        localStorage.removeItem('us_portal_logs');
-      }
-    }
-  } catch (err) {
-    console.error('Error during local storage data migration:', err);
-  }
+  if (!currentUserProfile) return;
 
   try {
     const { data, error } = await supabaseClient
       .from('logs')
       .select('*')
+      .eq('couple_id', currentUserProfile.couple_id)
       .order('timestamp', { ascending: false });
+    
     if (error) throw error;
     logs = data || [];
   } catch (err) {
@@ -401,17 +649,20 @@ async function loadLogs() {
 }
 
 // --- Email Notification Trigger ---
-function triggerEmailNotification(sender, type, data) {
-  const recipient = sender === 'Rajat' ? 'aadyabackup1@gmail.com' : 'upreti.rajat@gmail.com';
+function triggerEmailNotification(type, data) {
+  if (!partnerProfile) return;
+
+  const recipient = partnerProfile.email;
+  const senderName = currentUserProfile.first_name;
   let subject = '';
   let body = '';
 
   if (type === 'appreciation') {
-    subject = `[US Connection Portal] New Appreciation from ${sender}`;
-    body = `Hi,\n\nYou have received a new appreciation from ${sender}:\n\n"${data.message}"\n\nCheck it out in the portal!\n\nSent from US Connection Portal.`;
+    subject = `[US Connection Portal] New Appreciation from ${senderName}`;
+    body = `Hi,\n\nYou have received a new appreciation from ${senderName}:\n\n"${data.message}"\n\nCheck it out in the portal!\n\nSent from US Connection Portal.`;
   } else if (type === 'complaint') {
     subject = `[US Connection Portal] New Complaint: ${data.title}`;
-    body = `Hi,\n\n${sender} has raised a new complaint:\n\nTitle: ${data.title}\nDescription: ${data.description}\n\nPlease acknowledge and work on it in the portal.\n\nSent from US Connection Portal.`;
+    body = `Hi,\n\n${senderName} has raised a new complaint:\n\nTitle: ${data.title}\nDescription: ${data.description}\n\nPlease acknowledge and work on it in the portal.\n\nSent from US Connection Portal.`;
   }
 
   const mailtoUrl = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -428,9 +679,10 @@ async function submitAppreciation() {
 
   const newLog = {
     id: 'app_' + Date.now() + Math.random().toString(36).substr(2, 5),
+    couple_id: currentUserProfile.couple_id,
     type: 'appreciation',
-    sender: currentUser,
-    receiver: getPartnerName(currentUser),
+    sender_id: currentUserProfile.id,
+    receiver_id: partnerProfile.id,
     message: message,
     timestamp: Date.now()
   };
@@ -439,12 +691,13 @@ async function submitAppreciation() {
     const { error } = await supabaseClient
       .from('logs')
       .insert([newLog]);
+    
     if (error) throw error;
 
     logs.push(newLog);
     closeModal(modalAppreciation);
     renderFeed();
-    triggerEmailNotification(newLog.sender, 'appreciation', { message: message });
+    triggerEmailNotification('appreciation', { message: message });
   } catch (err) {
     console.error('Failed to submit appreciation:', err);
     alert('Failed to save to database: ' + err.message);
@@ -466,12 +719,13 @@ async function submitComplaint() {
 
   const newLog = {
     id: 'comp_' + Date.now() + Math.random().toString(36).substr(2, 5),
+    couple_id: currentUserProfile.couple_id,
     type: 'complaint',
-    sender: currentUser,
-    receiver: getPartnerName(currentUser),
+    sender_id: currentUserProfile.id,
+    receiver_id: partnerProfile.id,
     title: title,
     description: description,
-    status: 'Open', // Initial status
+    status: 'Open',
     timestamp: Date.now()
   };
 
@@ -479,37 +733,34 @@ async function submitComplaint() {
     const { error } = await supabaseClient
       .from('logs')
       .insert([newLog]);
+    
     if (error) throw error;
 
     logs.push(newLog);
     closeModal(modalComplaint);
     renderFeed();
-    triggerEmailNotification(newLog.sender, 'complaint', { title: title, description: description });
+    triggerEmailNotification('complaint', { title: title, description: description });
   } catch (err) {
     console.error('Failed to submit complaint:', err);
     alert('Failed to save to database: ' + err.message);
   }
 }
 
-/**
- * Handles status updates for complaints based on user roles and permissions
- */
 async function updateComplaintStatus(id, newStatus) {
   const logIndex = logs.findIndex(log => log.id === id);
   if (logIndex === -1) return;
 
   const log = logs[logIndex];
   
-  // Verification check: Double check authority
-  const isSender = log.sender === currentUser;
-  const isReceiver = log.receiver === currentUser;
+  const isSender = log.sender_id === currentUserProfile.id;
+  const isReceiver = log.receiver_id === currentUserProfile.id;
 
   if (newStatus === 'Closed' && !isSender) {
     alert('Permission Denied: Only the raiser (sender) can close a complaint.');
     return;
   }
   if ((newStatus === 'Acknowledged' || newStatus === 'In Progress') && !isReceiver) {
-    alert('Permission Denied: Only the accused (receiver) can advance status.');
+    alert('Permission Denied: Only the receiver can advance status.');
     return;
   }
   if (newStatus === 'Open' && !isSender && log.status === 'Closed') {
@@ -522,9 +773,9 @@ async function updateComplaintStatus(id, newStatus) {
       .from('logs')
       .update({ status: newStatus })
       .eq('id', id);
+    
     if (error) throw error;
 
-    // Commit update locally
     log.status = newStatus;
     renderFeed();
   } catch (err) {
@@ -538,36 +789,26 @@ function renderFeed() {
   const typeFilter = filterType.value;
   const statusFilter = filterStatus.value;
 
-  // Toggle status filter display (only show status filter if appreciations are not exclusively selected)
   if (typeFilter === 'appreciation') {
     statusFilterContainer.classList.add('disabled');
   } else {
     statusFilterContainer.classList.remove('disabled');
   }
 
-  // Sort logs chronologically (newest first)
   const sortedLogs = [...logs].sort((a, b) => b.timestamp - a.timestamp);
 
-  // Filter logs array
   const filteredLogs = sortedLogs.filter(log => {
-    // 1. Tab Direction Filter
-    if (currentTab === 'inbox' && log.receiver !== currentUser) return false;
-    if (currentTab === 'outbox' && log.sender !== currentUser) return false;
+    if (currentTab === 'inbox' && log.receiver_id !== currentUserProfile.id) return false;
+    if (currentTab === 'outbox' && log.sender_id !== currentUserProfile.id) return false;
 
-    // 2. Type Filter
     if (typeFilter !== 'all' && log.type !== typeFilter) return false;
 
-    // 3. Status Filter (only applies to complaints)
     if (log.type === 'complaint' && statusFilter !== 'all' && log.status !== statusFilter) return false;
-    if (log.type === 'appreciation' && typeFilter === 'all' && statusFilter !== 'all') {
-      // If filtering for a specific complaint status, hide appreciations since they don't have statuses
-      return false;
-    }
+    if (log.type === 'appreciation' && typeFilter === 'all' && statusFilter !== 'all') return false;
 
     return true;
   });
 
-  // Clear feed container
   feedContainer.innerHTML = '';
 
   if (filteredLogs.length === 0) {
@@ -585,22 +826,25 @@ function renderFeed() {
     return;
   }
 
-  // Create card items
+  const getUserName = (id) => {
+    if (id === currentUserProfile.id) return currentUserProfile.first_name;
+    if (partnerProfile && id === partnerProfile.id) return partnerProfile.first_name;
+    return "Partner";
+  };
+
   filteredLogs.forEach(log => {
     const card = document.createElement('article');
-    const isSender = log.sender === currentUser;
-    const isReceiver = log.receiver === currentUser;
+    const isSender = log.sender_id === currentUserProfile.id;
+    const isReceiver = log.receiver_id === currentUserProfile.id;
     
     if (log.type === 'appreciation') {
-      // --- Render Appreciation Card ---
       card.className = 'feed-card glass-panel appreciation-card';
-      
       card.innerHTML = `
         <div class="card-header">
           <div class="card-meta">
             <span class="badge-type badge-appreciation">❤ Appreciation</span>
             <div class="card-direction">
-              From <span>${log.sender}</span> to <span>${log.receiver}</span>
+              From <span>${getUserName(log.sender_id)}</span> to <span>${getUserName(log.receiver_id)}</span>
             </div>
           </div>
           <span class="card-timestamp">${formatDate(log.timestamp)}</span>
@@ -610,10 +854,8 @@ function renderFeed() {
         </div>
       `;
     } else {
-      // --- Render Complaint Card ---
       card.className = `feed-card glass-panel complaint-card status-${log.status.replace(' ', '-')}`;
       
-      // Determine badge class name based on status
       let statusTagClass = 'status-tag-open';
       if (log.status === 'Acknowledged') statusTagClass = 'status-tag-acknowledged';
       if (log.status === 'In Progress') statusTagClass = 'status-tag-in-progress';
@@ -621,7 +863,6 @@ function renderFeed() {
 
       let actionsHTML = '';
 
-      // Determine status action buttons (only visible to specific roles based on current status)
       if (isReceiver && log.status !== 'Closed') {
         if (log.status === 'Open') {
           actionsHTML = `
@@ -652,9 +893,7 @@ function renderFeed() {
         }
       }
 
-      // Add Comment button is visible to both sender and receiver once the complaint is Acknowledged, In Progress, or Closed
-      const isParticipant = isSender || isReceiver;
-      if (isParticipant && log.status !== 'Open') {
+      if (log.status !== 'Open') {
         actionsHTML += `
           <button class="btn-status-action btn-action-comment" onclick="openCommentModal('${log.id}')">
             Add Comment
@@ -667,7 +906,7 @@ function renderFeed() {
           <div class="card-meta">
             <span class="badge-type badge-complaint">⚠ Complaint</span>
             <div class="card-direction">
-              From <span>${log.sender}</span> to <span>${log.receiver}</span>
+              From <span>${getUserName(log.sender_id)}</span> to <span>${getUserName(log.receiver_id)}</span>
             </div>
           </div>
           <div class="card-meta">
@@ -683,7 +922,7 @@ function renderFeed() {
               ${log.comments.map(c => `
                 <div class="comment-item">
                   <div class="comment-item-header">
-                    <span class="comment-item-sender sender-${c.sender.toLowerCase()}">${c.sender}</span>
+                    <span class="comment-item-sender sender-${getUserName(c.sender_id).toLowerCase()}">${getUserName(c.sender_id)}</span>
                     <span class="comment-item-timestamp">${formatDate(c.timestamp)}</span>
                   </div>
                   <p class="comment-item-text">${escapeHTML(c.text)}</p>
@@ -700,7 +939,6 @@ function renderFeed() {
   });
 }
 
-// Simple HTML escaping helper for safety
 function escapeHTML(str) {
   return str.replace(/[&<>'"]/g, 
     tag => ({
@@ -715,7 +953,7 @@ function escapeHTML(str) {
 
 function openCommentModal(id) {
   activeCommentLogId = id;
-  inputCommentText.value = ''; // Always empty on load for new comment appending
+  inputCommentText.value = '';
   openModal(modalComment);
 }
 
@@ -731,12 +969,11 @@ async function submitComment() {
   if (!log) return;
 
   const newComment = {
-    sender: currentUser,
+    sender_id: currentUserProfile.id,
     text: commentText,
     timestamp: Date.now()
   };
 
-  // Append new comment to thread
   const updatedComments = [...(log.comments || []), newComment];
 
   try {
@@ -744,11 +981,10 @@ async function submitComment() {
       .from('logs')
       .update({ comments: updatedComments })
       .eq('id', activeCommentLogId);
+    
     if (error) throw error;
 
-    // Update locally
     log.comments = updatedComments;
-    
     closeModal(modalComment);
     renderFeed();
   } catch (err) {
@@ -757,29 +993,28 @@ async function submitComment() {
   }
 }
 
-// Expose state updates globally for inline card onclick triggers
+// Expose status updates globally for inline card onclick triggers
 window.updateComplaintStatus = updateComplaintStatus;
 window.openCommentModal = openCommentModal;
 
 // --- Bind Navigation Events & Load ---
 function setupEventListeners() {
-  // Direct identity selection login flow
-  const partnerBtns = document.querySelectorAll('.partner-btn');
-  partnerBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const selected = btn.getAttribute('data-user');
-      if (selected) {
-        // Apply theme immediately
-        document.body.className = `theme-${selected.toLowerCase()}`;
-        // Log in
-        login(selected);
-      }
-    });
+  // Form Submit Triggers
+  signupForm.addEventListener('submit', handleRegister);
+  loginForm.addEventListener('submit', handleLogin);
+  
+  // Multiple logout buttons (both waiting-room and dashboard)
+  btnLogoutList.forEach(btn => btn.addEventListener('click', handleLogout));
+
+  // Waiting Room Invite Control Hooks
+  btnCopyLink.addEventListener('click', copyInviteLink);
+  btnWhatsappInvite.addEventListener('click', inviteViaWhatsApp);
+  btnEmailInvite.addEventListener('click', inviteViaEmail);
+  btnManualRefreshPair.addEventListener('click', () => {
+    if (currentUser) loadUserProfile(currentUser.id);
   });
 
-  btnLogout.addEventListener('click', logout);
-
-  // Modal triggers
+  // Dashboard modal triggers
   cardTriggerAppreciation.addEventListener('click', () => openModal(modalAppreciation));
   cardTriggerComplaint.addEventListener('click', () => openModal(modalComplaint));
 
@@ -810,6 +1045,9 @@ function setupEventListeners() {
   // Dropdown filter changes
   filterType.addEventListener('change', renderFeed);
   filterStatus.addEventListener('change', renderFeed);
+
+  // Hash-based router listener
+  window.addEventListener('hashchange', router);
 }
 
 // --- Initialize App ---
@@ -823,7 +1061,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const span = document.createElement('span');
       span.textContent = char === ' ' ? '\u00A0' : char; // Use non-breaking space for layout
       span.className = 'char-item';
-      // 0.4s base delay, followed by 18ms per character (gives a quick typewriter look)
       const delay = 0.4 + index * 0.018;
       span.style.animationDelay = `${delay}s`;
       subtitleEl.appendChild(span);
@@ -838,9 +1075,27 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', resizeCanvas);
   resizeCanvas();
 
-  // 2. Bind inputs/controls
+  // 2. Bind inputs/controls & router
   setupEventListeners();
 
-  // 3. Validate user session
+  // 3. Validate user session & route page
   checkSession();
+
+  // Supabase Auth listener to handle authentication states dynamically
+  supabaseClient.auth.onAuthStateChange(async (event, session) => {
+    console.log("Auth state change event:", event);
+    if (session) {
+      currentUser = session.user;
+      if (!currentUserProfile || currentUserProfile.id !== session.user.id) {
+        await loadUserProfile(session.user.id);
+      } else {
+        await router();
+      }
+    } else {
+      currentUser = null;
+      currentUserProfile = null;
+      partnerProfile = null;
+      await router();
+    }
+  });
 });
