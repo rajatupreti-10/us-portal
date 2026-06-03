@@ -173,12 +173,7 @@
       </div>
       <div class="nav-user-controls">
         <span class="user-greeting" id="waiting-room-greeting">Hello</span>
-        <button class="nav-logout-btn btn-logout" title="Sign Out">
-          <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
-          </svg>
-          Logout
-        </button>
+        <div id="user-button-waiting"></div>
       </div>
     </header>
 
@@ -251,12 +246,7 @@
       <div class="nav-user-controls">
         <span class="user-greeting">Hello, <strong id="current-user-name">User</strong></span>
         <span id="partner-connection-badge" class="partner-connection-badge">Connected</span>
-        <button class="nav-logout-btn btn-logout" title="Sign Out">
-          <svg class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
-          </svg>
-          Logout
-        </button>
+        <div id="user-button-portal"></div>
       </div>
     </header>
 
@@ -409,6 +399,8 @@
     </div>
   </div>
 
+  <!-- Clerk JS SDK -->
+  <script async crossorigin="anonymous" data-clerk-publishable-key="pk_test_d2lyZWQtZWFnbGUtMzQuY2xlcmsuYWNjb3VudHMuZGV2JA" src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js" type="text/javascript"></script>
   <!-- Supabase & Custom Script Setup -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>

@@ -11,6 +11,7 @@ let partnerProfile = null;      // Partner profile from public.users
 let currentTab = 'all';         // 'all', 'inbox', 'outbox'
 let logs = [];
 let usersChannel = null;        // Real-time channel for partner-join sync
+let clerk = null;               // Clerk instance
 
 // Initialize Supabase Client
 const { createClient } = supabase;
@@ -299,11 +300,44 @@ async function router() {
     usersChannel = null;
   }
 
+  // Mount Clerk User Button in navbars if user is logged in
+  if (clerk && clerk.user) {
+    const waitingBtn = document.getElementById('user-button-waiting');
+    const portalBtn = document.getElementById('user-button-portal');
+    if (waitingBtn) clerk.mountUserButton(waitingBtn);
+    if (portalBtn) clerk.mountUserButton(portalBtn);
+  }
+
   // Redirect / Route logic based on auth
-  if (currentUser) {
-    // If logged in but profile hasn't loaded yet, show a blank view temporarily
+  if (clerk && clerk.user) {
+    // If logged in to Clerk but profile hasn't loaded / doesn't exist yet, show onboarding
     if (!currentUserProfile) {
-      console.log("Session exists but user profile not loaded yet. Waiting...");
+      if (currentUser) {
+        // Show onboarding (reuse signup page)
+        signupPage.classList.remove('hidden');
+        document.body.className = '';
+        startFloatingHearts();
+        
+        // Prefill from Clerk
+        signupFirstName.value = clerk.user.firstName || '';
+        signupLastName.value = clerk.user.lastName || '';
+        
+        // Hide email & password fields since clerk handles them
+        const emailField = document.getElementById('signup-email');
+        const passField = document.getElementById('signup-password');
+        if (emailField) emailField.closest('.form-group').classList.add('hidden');
+        if (passField) passField.closest('.form-group').classList.add('hidden');
+        
+        document.getElementById('signup-title-text').textContent = "Complete Your Profile";
+        document.getElementById('signup-subtitle-text').textContent = "Tell us a bit about yourself to activate your portal.";
+        btnSubmitSignup.textContent = "Complete Profile";
+        
+        if (inviteCoupleId) {
+          signupInviteCoupleId.value = inviteCoupleId;
+        }
+      } else {
+        console.log("Session exists but user profile not loaded yet. Waiting...");
+      }
       return;
     }
 
@@ -352,35 +386,17 @@ async function router() {
   } else {
     // Guest Routing
     if (path === '#/login') {
-      loginPage.classList.remove('hidden');
-      document.body.className = '';
-      startFloatingHearts();
-    } else if (path === '#/signup') {
-      signupPage.classList.remove('hidden');
-      document.body.className = '';
-      startFloatingHearts();
-
-      if (inviteCoupleId) {
-        signupInviteCoupleId.value = inviteCoupleId;
-        
-        // Fetch inviter's first name for high visual delight
-        const { data, error: fetchErr } = await supabaseClient
-          .from('users')
-          .select('first_name')
-          .eq('couple_id', inviteCoupleId)
-          .limit(1);
-
-        if (!fetchErr && data && data.length > 0) {
-          const inviterName = data[0].first_name;
-          document.getElementById('signup-title-text').textContent = `Accept ${inviterName}'s Invitation`;
-          document.getElementById('signup-subtitle-text').textContent = `Join ${inviterName} in your private relationship portal.`;
-        }
-      } else {
-        // Reset defaults
-        document.getElementById('signup-title-text').textContent = `Create Your Portal`;
-        document.getElementById('signup-subtitle-text').textContent = `Start your private relationship workspace today.`;
-        signupInviteCoupleId.value = '';
+      if (clerk) {
+        clerk.openSignIn();
       }
+      window.location.hash = '#/';
+      return;
+    } else if (path === '#/signup') {
+      if (clerk) {
+        clerk.openSignUp();
+      }
+      window.location.hash = '#/';
+      return;
     } else {
       // Force base landing hash
       if (hash !== '#/') {
@@ -403,19 +419,70 @@ function applyUserTheme(gender) {
 }
 
 // --- Authentication Session Control ---
-async function checkSession() {
-  const { data: { session }, error } = await supabaseClient.auth.getSession();
-  if (error) {
-    console.error("Session check error:", error);
-    router();
-    return;
-  }
+async function waitForClerk() {
+  return new Promise((resolve) => {
+    if (window.Clerk) {
+      resolve(window.Clerk);
+      return;
+    }
+    const interval = setInterval(() => {
+      if (window.Clerk) {
+        clearInterval(interval);
+        resolve(window.Clerk);
+      }
+    }, 50);
+  });
+}
+
+async function checkClerkSession() {
+  if (!clerk) return;
   
-  if (session) {
-    currentUser = session.user;
-    await loadUserProfile(session.user.id);
+  if (clerk.user) {
+    await syncClerkWithSupabase(clerk.user);
   } else {
-    router();
+    try {
+      await supabaseClient.auth.signOut();
+    } catch (err) {
+      console.error("Supabase sign out error:", err);
+    }
+    currentUser = null;
+    currentUserProfile = null;
+    partnerProfile = null;
+    await router();
+  }
+}
+
+async function syncClerkWithSupabase(clerkUser) {
+  if (!clerkUser) return;
+
+  const email = clerkUser.primaryEmailAddress.emailAddress;
+  const clerkId = clerkUser.id;
+  const deterministicPassword = 'ClerkShadow_' + clerkId + '_SecureSalt!';
+
+  try {
+    const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: deterministicPassword
+    });
+
+    if (signInError) {
+      const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
+        email: email,
+        password: deterministicPassword
+      });
+
+      if (signUpError) {
+        console.error("Supabase shadow signup failed:", signUpError);
+        return;
+      }
+      currentUser = signUpData.user;
+    } else {
+      currentUser = signInData.user;
+    }
+
+    await loadUserProfile(currentUser.id);
+  } catch (err) {
+    console.error("Failed to sync Clerk with Supabase:", err);
   }
 }
 
@@ -430,11 +497,10 @@ async function loadUserProfile(userId) {
     
     if (profiles && profiles.length > 0) {
       currentUserProfile = profiles[0];
-      await router();
     } else {
-      console.warn("User has auth credentials but no profile in public.users. Logging out.");
-      await handleLogout();
+      currentUserProfile = null;
     }
+    await router();
   } catch (err) {
     console.error("Failed to load user profile:", err);
     alert("Error loading profile: " + err.message);
@@ -448,106 +514,59 @@ async function handleRegister(e) {
   const lastName = signupLastName.value.trim();
   const dob = signupDob.value;
   const gender = signupGender.value;
-  const email = signupEmail.value.trim();
-  const password = signupPassword.value;
   const inviteCoupleId = signupInviteCoupleId.value;
 
-  if (!firstName || !dob || !gender || !email || !password) {
+  if (!firstName || !dob || !gender) {
     alert("Please fill in all required fields.");
     return;
   }
 
   btnSubmitSignup.disabled = true;
-  btnSubmitSignup.textContent = "Registering...";
+  btnSubmitSignup.textContent = "Saving Profile...";
 
   try {
-    // 1. Sign up user via Supabase Auth
-    const { data: authData, error: authError } = await supabaseClient.auth.signUp({
-      email,
-      password
-    });
-
-    if (authError) throw authError;
-
-    if (!authData.user) {
-      throw new Error("No user object returned from signup.");
+    if (!currentUser) {
+      throw new Error("Supabase Auth user session not active.");
     }
 
-    // 2. Generate or assign Couple ID
     const coupleId = inviteCoupleId || 'couple_' + Date.now() + Math.random().toString(36).substr(2, 9);
 
-    // 3. Create public profile
     const { error: profileError } = await supabaseClient
       .from('users')
       .insert([{
-        id: authData.user.id,
+        id: currentUser.id,
         first_name: firstName,
         last_name: lastName || null,
         dob: dob,
         gender: gender,
-        email: email,
+        email: clerk.user.primaryEmailAddress.emailAddress,
         couple_id: coupleId
       }]);
 
     if (profileError) throw profileError;
 
-    alert("Registration successful!");
-    
-    // Auth state triggers automatic routing
-    currentUser = authData.user;
-    await loadUserProfile(authData.user.id);
+    alert("Profile set up successfully!");
+    await loadUserProfile(currentUser.id);
   } catch (err) {
-    console.error("Signup failed:", err);
-    alert("Registration failed: " + err.message);
+    console.error("Setup failed:", err);
+    alert("Setup failed: " + err.message);
     btnSubmitSignup.disabled = false;
-    btnSubmitSignup.textContent = "Register Account";
+    btnSubmitSignup.textContent = "Complete Profile";
   }
 }
 
 async function handleLogin(e) {
   if (e) e.preventDefault();
-
-  const email = loginEmail.value.trim();
-  const password = loginPassword.value;
-
-  if (!email || !password) {
-    alert("Please fill in all fields.");
-    return;
-  }
-
-  btnSubmitLogin.disabled = true;
-  btnSubmitLogin.textContent = "Logging in...";
-
-  try {
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) throw error;
-    
-    currentUser = data.user;
-    await loadUserProfile(data.user.id);
-  } catch (err) {
-    console.error("Login failed:", err);
-    alert("Login failed: " + err.message);
-  } finally {
-    btnSubmitLogin.disabled = false;
-    btnSubmitLogin.textContent = "Log In";
-  }
+  if (clerk) clerk.openSignIn();
 }
 
 async function handleLogout() {
   try {
-    const { error } = await supabaseClient.auth.signOut();
-    if (error) throw error;
+    if (clerk) {
+      await clerk.signOut();
+    }
   } catch (err) {
     console.error("Failed to sign out:", err);
-  } finally {
-    currentUser = null;
-    currentUserProfile = null;
-    partnerProfile = null;
-    window.location.hash = '#/';
   }
 }
 
@@ -1078,24 +1097,40 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. Bind inputs/controls & router
   setupEventListeners();
 
-  // 3. Validate user session & route page
-  checkSession();
+  // 3. Wait for Clerk and initialize
+  waitForClerk().then(async (clerkInstance) => {
+    clerk = clerkInstance;
+    await clerk.load();
 
-  // Supabase Auth listener to handle authentication states dynamically
-  supabaseClient.auth.onAuthStateChange(async (event, session) => {
-    console.log("Auth state change event:", event);
-    if (session) {
-      currentUser = session.user;
-      if (!currentUserProfile || currentUserProfile.id !== session.user.id) {
-        await loadUserProfile(session.user.id);
-      } else {
-        await router();
-      }
-    } else {
-      currentUser = null;
-      currentUserProfile = null;
-      partnerProfile = null;
-      await router();
+    // Attach click listeners to landing buttons
+    const landingBtnLogin = document.getElementById('landing-btn-login');
+    const landingBtnSignupNav = document.getElementById('landing-btn-signup-nav');
+    const landingBtnSignupHero = document.getElementById('landing-btn-signup-hero');
+
+    if (landingBtnLogin) {
+      landingBtnLogin.addEventListener('click', (e) => {
+        e.preventDefault();
+        clerk.openSignIn();
+      });
     }
+    if (landingBtnSignupNav) {
+      landingBtnSignupNav.addEventListener('click', (e) => {
+        e.preventDefault();
+        clerk.openSignUp();
+      });
+    }
+    if (landingBtnSignupHero) {
+      landingBtnSignupHero.addEventListener('click', (e) => {
+        e.preventDefault();
+        clerk.openSignUp();
+      });
+    }
+
+    clerk.addListener(async ({ user }) => {
+      console.log("Clerk state changed. User:", user ? user.id : "null");
+      await checkClerkSession();
+    });
+
+    await checkClerkSession();
   });
 });
