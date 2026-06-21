@@ -5,19 +5,25 @@
  */
 
 // --- App State & Data Management ---
-let currentUserProfile = {
-  id: 'user_1',
-  first_name: 'Aadya',
-  gender: 'Female',
-  couple_id: 'couple_1'
+const PROFILES = {
+  user_1: {
+    id: 'user_1',
+    first_name: 'Aadya',
+    gender: 'Female',
+    couple_id: 'couple_1',
+    email: 'aadya@example.com'
+  },
+  user_2: {
+    id: 'user_2',
+    first_name: 'Rajat',
+    gender: 'Male',
+    couple_id: 'couple_1',
+    email: 'rajat@example.com'
+  }
 };
-let partnerProfile = {
-  id: 'user_2',
-  first_name: 'Rajat',
-  gender: 'Male',
-  couple_id: 'couple_1',
-  email: 'rajat@example.com'
-};
+
+let currentUserProfile = PROFILES.user_1; // fallback
+let partnerProfile = PROFILES.user_2;     // fallback
 let currentTab = 'all';         // 'all', 'inbox', 'outbox'
 let logs = [];
 
@@ -201,9 +207,28 @@ function formatDate(timestamp) {
 
 // --- Dynamic Route Handler ---
 function router() {
-  if (portalContainer) {
-    portalContainer.classList.remove('hidden');
+  const selectedUserId = localStorage.getItem('selected_user_id');
+  const landingPage = document.getElementById('landing-page');
+  const portalContainer = document.getElementById('portal-container');
+
+  if (!selectedUserId) {
+    if (landingPage) landingPage.classList.remove('hidden');
+    if (portalContainer) portalContainer.classList.add('hidden');
+    initLandingPageEffects();
+    return;
   }
+
+  // Set active profile configuration
+  if (selectedUserId === 'user_1') {
+    currentUserProfile = PROFILES.user_1;
+    partnerProfile = PROFILES.user_2;
+  } else {
+    currentUserProfile = PROFILES.user_2;
+    partnerProfile = PROFILES.user_1;
+  }
+
+  if (landingPage) landingPage.classList.add('hidden');
+  if (portalContainer) portalContainer.classList.remove('hidden');
 
   if (currentUserNameTag) {
     currentUserNameTag.textContent = currentUserProfile.first_name;
@@ -214,6 +239,71 @@ function router() {
   
   applyUserTheme(currentUserProfile.gender);
   loadLogs();
+}
+
+function selectUser(userId) {
+  localStorage.setItem('selected_user_id', userId);
+  router();
+}
+
+function handleSwitchUser() {
+  localStorage.removeItem('selected_user_id');
+  currentUserProfile = null;
+  partnerProfile = null;
+  router();
+}
+
+// --- Landing Page Animations & Visual Effects ---
+let heartsInterval = null;
+
+function initLandingPageEffects() {
+  if (heartsInterval) clearInterval(heartsInterval);
+
+  const subtitleEl = document.querySelector('.hero-subtitle');
+  if (subtitleEl && !subtitleEl.dataset.animated) {
+    const text = subtitleEl.textContent.trim();
+    subtitleEl.textContent = '';
+    [...text].forEach((char, index) => {
+      const span = document.createElement('span');
+      span.textContent = char === ' ' ? '\u00A0' : char;
+      span.className = 'char-item';
+      const delay = 0.2 + index * 0.025;
+      span.style.animationDelay = `${delay}s`;
+      subtitleEl.appendChild(span);
+    });
+    subtitleEl.dataset.animated = 'true';
+  }
+
+  const container = document.getElementById('heart-container');
+  if (container) {
+    for (let i = 0; i < 5; i++) {
+      createHeart(container);
+    }
+    heartsInterval = setInterval(() => {
+      createHeart(container);
+    }, 1800);
+  }
+}
+
+function createHeart(container) {
+  if (!container) return;
+  const heart = document.createElement('span');
+  heart.className = 'floating-heart';
+  heart.innerHTML = '❤';
+  
+  const size = Math.random() * 20 + 12;
+  heart.style.fontSize = `${size}px`;
+  heart.style.left = `${Math.random() * 100}%`;
+  
+  const duration = Math.random() * 8 + 6;
+  heart.style.animationDuration = `${duration}s`;
+  heart.style.opacity = (Math.random() * 0.4 + 0.25).toString();
+  
+  container.appendChild(heart);
+
+  setTimeout(() => {
+    heart.remove();
+  }, duration * 1000);
 }
 
 function applyUserTheme(gender) {
@@ -581,6 +671,15 @@ window.openCommentModal = openCommentModal;
 
 // --- Bind Navigation Events & Load ---
 function setupEventListeners() {
+  // Identity selection controls
+  const btnLoginAadya = document.getElementById('btn-login-aadya');
+  const btnLoginRajat = document.getElementById('btn-login-rajat');
+  const btnSwitchUser = document.getElementById('btn-switch-user');
+
+  if (btnLoginAadya) btnLoginAadya.addEventListener('click', () => selectUser('user_1'));
+  if (btnLoginRajat) btnLoginRajat.addEventListener('click', () => selectUser('user_2'));
+  if (btnSwitchUser) btnSwitchUser.addEventListener('click', handleSwitchUser);
+
   // Dashboard modal triggers
   if (cardTriggerAppreciation) cardTriggerAppreciation.addEventListener('click', () => openModal(modalAppreciation));
   if (cardTriggerComplaint) cardTriggerComplaint.addEventListener('click', () => openModal(modalComplaint));

@@ -14,8 +14,35 @@
   <!-- Interactive canvas particle layer -->
   <canvas id="canvas-background"></canvas>
 
+  <!-- ==================== 1. LANDING SELECTOR PAGE ==================== -->
+  <div id="landing-page" class="auth-page-wrapper">
+    <!-- Floating Hearts (Gen-Z Aesthetic) -->
+    <div class="heart-container" id="heart-container"></div>
+
+    <div class="hero-container">
+      <header class="hero-header">
+        <h2 class="hero-title reveal-item">US<span>.</span></h2>
+        <p class="hero-subtitle">Connecting Aadya & Rajat</p>
+      </header>
+
+      <div class="hero-actions-wrapper reveal-item">
+        <span class="hero-action-label">Enter Relationship Space</span>
+        <div class="partner-selector">
+          <button class="partner-btn btn-aadya" id="btn-login-aadya">
+            <div class="partner-avatar">A</div>
+            <span>Aadya</span>
+          </button>
+          <button class="partner-btn btn-rajat" id="btn-login-rajat">
+            <div class="partner-avatar">R</div>
+            <span>Rajat</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== 5. MAIN DASHBOARD PORTAL ==================== -->
-  <div id="portal-container" class="portal-wrapper">
+  <div id="portal-container" class="portal-wrapper hidden">
     <!-- Header Navbar -->
     <header class="navbar glass-panel">
       <div class="nav-brand">
@@ -24,6 +51,7 @@
       <div class="nav-user-controls">
         <span class="user-greeting">Hello, <strong id="current-user-name">User</strong></span>
         <span id="partner-connection-badge" class="partner-connection-badge">Connected</span>
+        <button class="nav-switch-btn" id="btn-switch-user">Switch User</button>
       </div>
     </header>
 
