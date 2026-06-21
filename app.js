@@ -5,54 +5,25 @@
  */
 
 // --- App State & Data Management ---
-let currentUser = null;         // Supabase Auth User object
-let currentUserProfile = null;  // Profile from public.users
-let partnerProfile = null;      // Partner profile from public.users
+let currentUserProfile = {
+  id: 'user_1',
+  first_name: 'Aadya',
+  gender: 'Female',
+  couple_id: 'couple_1'
+};
+let partnerProfile = {
+  id: 'user_2',
+  first_name: 'Rajat',
+  gender: 'Male',
+  couple_id: 'couple_1',
+  email: 'rajat@example.com'
+};
 let currentTab = 'all';         // 'all', 'inbox', 'outbox'
 let logs = [];
-let usersChannel = null;        // Real-time channel for partner-join sync
-let clerk = null;               // Clerk instance
-
-// Initialize Supabase Client
-const { createClient } = supabase;
-const supabaseClient = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
 // --- DOM Cache Elements ---
 // Page Container Views
-const landingPage = document.getElementById('landing-page');
-const loginPage = document.getElementById('login-page');
-const signupPage = document.getElementById('signup-page');
-const waitingRoom = document.getElementById('waiting-room');
 const portalContainer = document.getElementById('portal-container');
-
-// Forms & Inputs
-const signupForm = document.getElementById('signup-form');
-const loginForm = document.getElementById('login-form');
-
-const signupFirstName = document.getElementById('signup-first-name');
-const signupLastName = document.getElementById('signup-last-name');
-const signupDob = document.getElementById('signup-dob');
-const signupGender = document.getElementById('signup-gender');
-const signupEmail = document.getElementById('signup-email');
-const signupPassword = document.getElementById('signup-password');
-const signupInviteCoupleId = document.getElementById('signup-invite-couple-id');
-
-const loginEmail = document.getElementById('login-email');
-const loginPassword = document.getElementById('login-password');
-
-// Control Buttons
-const btnSubmitSignup = document.getElementById('btn-submit-signup');
-const btnSubmitLogin = document.getElementById('btn-submit-login');
-const btnLogoutList = document.querySelectorAll('.btn-logout');
-
-// Waiting Room Controls
-const waitingRoomGreeting = document.getElementById('waiting-room-greeting');
-const inviteLinkDisplay = document.getElementById('invite-link-display');
-const btnCopyLink = document.getElementById('btn-copy-link');
-const btnWhatsappInvite = document.getElementById('btn-whatsapp-invite');
-const inviteEmailInput = document.getElementById('invite-email-input');
-const btnEmailInvite = document.getElementById('btn-email-invite');
-const btnManualRefreshPair = document.getElementById('btn-manual-refresh-pair');
 
 // Dashboard Controls
 const currentUserNameTag = document.getElementById('current-user-name');
@@ -193,79 +164,30 @@ function initParticles() {
   }
 }
 
-// Animation Loop (interactive dots on logged-in/auth pages)
+// Animation Loop
 function animateParticles() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-  // Show particles only when logged in (dashboard & waiting room)
-  if (currentUser !== null) {
-    // Keep animation alive even when user is inactive (no mouse moves for > 4 seconds)
-    if (mouse.x !== null && mouse.y !== null && (Date.now() - lastMouseMove < 4000)) {
-      activeAttractor.x = mouse.x;
-      activeAttractor.y = mouse.y;
-    } else {
-      // Inactive or mouse off-screen: wander the attractor using a Lissajous curve
-      const time = Date.now() * 0.001;
-      activeAttractor.x = canvas.width / 2 + Math.cos(time * 0.8) * (canvas.width * 0.35);
-      activeAttractor.y = canvas.height / 2 + Math.sin(time * 0.6) * (canvas.height * 0.35);
-    }
-    
-    particles.forEach(p => {
-      p.update();
-      p.draw();
-    });
+  // Keep animation alive even when user is inactive (no mouse moves for > 4 seconds)
+  if (mouse.x !== null && mouse.y !== null && (Date.now() - lastMouseMove < 4000)) {
+    activeAttractor.x = mouse.x;
+    activeAttractor.y = mouse.y;
+  } else {
+    // Inactive or mouse off-screen: wander the attractor using a Lissajous curve
+    const time = Date.now() * 0.001;
+    activeAttractor.x = canvas.width / 2 + Math.cos(time * 0.8) * (canvas.width * 0.35);
+    activeAttractor.y = canvas.height / 2 + Math.sin(time * 0.6) * (canvas.height * 0.35);
   }
+  
+  particles.forEach(p => {
+    p.update();
+    p.draw();
+  });
   
   requestAnimationFrame(animateParticles);
 }
 
 // --- Helper Functions ---
-let heartInterval = null;
-
-function startFloatingHearts() {
-  if (heartInterval) return;
-  
-  const activeAuthPage = window.location.hash === '#/login' ? loginPage : signupPage;
-  if (!activeAuthPage) return;
-  
-  let container = activeAuthPage.querySelector('.heart-container');
-  if (!container) {
-    container = document.createElement('div');
-    container.className = 'heart-container';
-    activeAuthPage.appendChild(container);
-  }
-
-  heartInterval = setInterval(() => {
-    const heart = document.createElement('div');
-    heart.className = 'floating-heart';
-    heart.innerHTML = '❤️';
-    
-    const size = Math.random() * 12 + 10; // 10px to 22px
-    const left = Math.random() * 100;
-    const duration = Math.random() * 6 + 6; // 6s to 12s
-    const opacity = Math.random() * 0.12 + 0.04; // 0.04 to 0.16 (very subtle)
-    
-    heart.style.left = `${left}%`;
-    heart.style.fontSize = `${size}px`;
-    heart.style.animationDuration = `${duration}s`;
-    heart.style.setProperty('--target-opacity', opacity);
-    
-    container.appendChild(heart);
-    
-    setTimeout(() => {
-      heart.remove();
-    }, duration * 1000);
-  }, 300); // Spawns hearts 3x faster (every 300ms)
-}
-
-function stopFloatingHearts() {
-  if (heartInterval) {
-    clearInterval(heartInterval);
-    heartInterval = null;
-  }
-  document.querySelectorAll('.heart-container').forEach(c => c.remove());
-}
-
 function getPartnerName() {
   return partnerProfile ? partnerProfile.first_name : 'Partner';
 }
@@ -278,135 +200,20 @@ function formatDate(timestamp) {
 }
 
 // --- Dynamic Route Handler ---
-async function router() {
-  const hash = window.location.hash || '#/';
-  const path = hash.split('?')[0];
-  const queryStr = hash.split('?')[1] || '';
-  const params = new URLSearchParams(queryStr);
-  const inviteCoupleId = params.get('invite_couple_id');
-
-  // Hide all screens
-  landingPage.classList.add('hidden');
-  loginPage.classList.add('hidden');
-  signupPage.classList.add('hidden');
-  waitingRoom.classList.add('hidden');
-  portalContainer.classList.add('hidden');
-
-  stopFloatingHearts();
-
-  // Cancel any active subscriptions
-  if (usersChannel) {
-    usersChannel.unsubscribe();
-    usersChannel = null;
+function router() {
+  if (portalContainer) {
+    portalContainer.classList.remove('hidden');
   }
 
-  // Mount Clerk User Button in navbars if user is logged in
-  if (clerk && clerk.user) {
-    const waitingBtn = document.getElementById('user-button-waiting');
-    const portalBtn = document.getElementById('user-button-portal');
-    if (waitingBtn) clerk.mountUserButton(waitingBtn);
-    if (portalBtn) clerk.mountUserButton(portalBtn);
+  if (currentUserNameTag) {
+    currentUserNameTag.textContent = currentUserProfile.first_name;
   }
-
-  // Redirect / Route logic based on auth
-  if (clerk && clerk.user) {
-    // If logged in to Clerk but profile hasn't loaded / doesn't exist yet, show onboarding
-    if (!currentUserProfile) {
-      if (currentUser) {
-        // Show onboarding (reuse signup page)
-        signupPage.classList.remove('hidden');
-        document.body.className = '';
-        startFloatingHearts();
-        
-        // Prefill from Clerk
-        signupFirstName.value = clerk.user.firstName || '';
-        signupLastName.value = clerk.user.lastName || '';
-        
-        // Hide email & password fields since clerk handles them
-        const emailField = document.getElementById('signup-email');
-        const passField = document.getElementById('signup-password');
-        if (emailField) emailField.closest('.form-group').classList.add('hidden');
-        if (passField) passField.closest('.form-group').classList.add('hidden');
-        
-        document.getElementById('signup-title-text').textContent = "Complete Your Profile";
-        document.getElementById('signup-subtitle-text').textContent = "Tell us a bit about yourself to activate your portal.";
-        btnSubmitSignup.textContent = "Complete Profile";
-        
-        if (inviteCoupleId) {
-          signupInviteCoupleId.value = inviteCoupleId;
-        }
-      } else {
-        console.log("Session exists but user profile not loaded yet. Waiting...");
-      }
-      return;
-    }
-
-    // Check if the user is paired or unpaired
-    const { data: coupleUsers, error } = await supabaseClient
-      .from('users')
-      .select('*')
-      .eq('couple_id', currentUserProfile.couple_id);
-
-    if (error) {
-      console.error("Router error fetching couple status:", error);
-      return;
-    }
-
-    if (coupleUsers.length === 1) {
-      // Unpaired -> Enforce waiting room routing
-      if (path !== '#/waiting-room') {
-        window.location.hash = '#/waiting-room';
-        return;
-      }
-
-      waitingRoom.classList.remove('hidden');
-      waitingRoomGreeting.innerHTML = `Hello, <strong>${currentUserProfile.first_name}</strong>`;
-      
-      // Update invite link to point to signup hash route
-      const inviteLink = window.location.origin + window.location.pathname + `#/signup?invite_couple_id=${currentUserProfile.couple_id}`;
-      inviteLinkDisplay.value = inviteLink;
-
-      applyUserTheme(currentUserProfile.gender);
-      subscribeToPartnerJoin();
-    } else if (coupleUsers.length >= 2) {
-      // Paired -> Enforce dashboard routing
-      if (path !== '#/dashboard') {
-        window.location.hash = '#/dashboard';
-        return;
-      }
-
-      partnerProfile = coupleUsers.find(u => u.id !== currentUserProfile.id);
-      portalContainer.classList.remove('hidden');
-
-      currentUserNameTag.textContent = currentUserProfile.first_name;
-      partnerConnectionBadge.textContent = `Connected with ${partnerProfile.first_name}`;
-      applyUserTheme(currentUserProfile.gender);
-      loadLogs();
-    }
-  } else {
-    // Guest Routing
-    if (path === '#/login') {
-      if (clerk) {
-        clerk.openSignIn();
-      }
-      window.location.hash = '#/';
-      return;
-    } else if (path === '#/signup') {
-      if (clerk) {
-        clerk.openSignUp();
-      }
-      window.location.hash = '#/';
-      return;
-    } else {
-      // Force base landing hash
-      if (hash !== '#/') {
-        window.location.hash = '#/';
-        return;
-      }
-      landingPage.classList.remove('hidden');
-      document.body.className = '';
-    }
+  if (partnerConnectionBadge) {
+    partnerConnectionBadge.textContent = `Connected with ${partnerProfile.first_name}`;
   }
+  
+  applyUserTheme(currentUserProfile.gender);
+  loadLogs();
 }
 
 function applyUserTheme(gender) {
@@ -418,226 +225,17 @@ function applyUserTheme(gender) {
   }
 }
 
-// --- Authentication Session Control ---
-async function waitForClerk() {
-  return new Promise((resolve) => {
-    if (window.Clerk) {
-      resolve(window.Clerk);
-      return;
-    }
-    const interval = setInterval(() => {
-      if (window.Clerk) {
-        clearInterval(interval);
-        resolve(window.Clerk);
-      }
-    }, 50);
-  });
-}
-
-async function checkClerkSession() {
-  if (!clerk) return;
-  
-  if (clerk.user) {
-    await syncClerkWithSupabase(clerk.user);
-  } else {
-    try {
-      await supabaseClient.auth.signOut();
-    } catch (err) {
-      console.error("Supabase sign out error:", err);
-    }
-    currentUser = null;
-    currentUserProfile = null;
-    partnerProfile = null;
-    await router();
-  }
-}
-
-async function syncClerkWithSupabase(clerkUser) {
-  if (!clerkUser) return;
-
-  const email = clerkUser.primaryEmailAddress.emailAddress;
-  const clerkId = clerkUser.id;
-  const deterministicPassword = 'ClerkShadow_' + clerkId + '_SecureSalt!';
-
-  try {
-    const { data: signInData, error: signInError } = await supabaseClient.auth.signInWithPassword({
-      email: email,
-      password: deterministicPassword
-    });
-
-    if (signInError) {
-      const { data: signUpData, error: signUpError } = await supabaseClient.auth.signUp({
-        email: email,
-        password: deterministicPassword
-      });
-
-      if (signUpError) {
-        console.error("Supabase shadow signup failed:", signUpError);
-        return;
-      }
-      currentUser = signUpData.user;
-    } else {
-      currentUser = signInData.user;
-    }
-
-    await loadUserProfile(currentUser.id);
-  } catch (err) {
-    console.error("Failed to sync Clerk with Supabase:", err);
-  }
-}
-
-async function loadUserProfile(userId) {
-  try {
-    const { data: profiles, error } = await supabaseClient
-      .from('users')
-      .select('*')
-      .eq('id', userId);
-    
-    if (error) throw error;
-    
-    if (profiles && profiles.length > 0) {
-      currentUserProfile = profiles[0];
-    } else {
-      currentUserProfile = null;
-    }
-    await router();
-  } catch (err) {
-    console.error("Failed to load user profile:", err);
-    alert("Error loading profile: " + err.message);
-  }
-}
-
-async function handleRegister(e) {
-  if (e) e.preventDefault();
-
-  const firstName = signupFirstName.value.trim();
-  const lastName = signupLastName.value.trim();
-  const dob = signupDob.value;
-  const gender = signupGender.value;
-  const inviteCoupleId = signupInviteCoupleId.value;
-
-  if (!firstName || !dob || !gender) {
-    alert("Please fill in all required fields.");
-    return;
-  }
-
-  btnSubmitSignup.disabled = true;
-  btnSubmitSignup.textContent = "Saving Profile...";
-
-  try {
-    if (!currentUser) {
-      throw new Error("Supabase Auth user session not active.");
-    }
-
-    const coupleId = inviteCoupleId || 'couple_' + Date.now() + Math.random().toString(36).substr(2, 9);
-
-    const { error: profileError } = await supabaseClient
-      .from('users')
-      .insert([{
-        id: currentUser.id,
-        first_name: firstName,
-        last_name: lastName || null,
-        dob: dob,
-        gender: gender,
-        email: clerk.user.primaryEmailAddress.emailAddress,
-        couple_id: coupleId
-      }]);
-
-    if (profileError) throw profileError;
-
-    alert("Profile set up successfully!");
-    await loadUserProfile(currentUser.id);
-  } catch (err) {
-    console.error("Setup failed:", err);
-    alert("Setup failed: " + err.message);
-    btnSubmitSignup.disabled = false;
-    btnSubmitSignup.textContent = "Complete Profile";
-  }
-}
-
-async function handleLogin(e) {
-  if (e) e.preventDefault();
-  if (clerk) clerk.openSignIn();
-}
-
-async function handleLogout() {
-  try {
-    if (clerk) {
-      await clerk.signOut();
-    }
-  } catch (err) {
-    console.error("Failed to sign out:", err);
-  }
-}
-
-// --- Realtime Subscriptions ---
-function subscribeToPartnerJoin() {
-  if (usersChannel) {
-    usersChannel.unsubscribe();
-  }
-
-  usersChannel = supabaseClient
-    .channel('public:users')
-    .on('postgres_changes', {
-      event: 'INSERT',
-      schema: 'public',
-      table: 'users',
-      filter: `couple_id=eq.${currentUserProfile.couple_id}`
-    }, async (payload) => {
-      console.log("Realtime partner join event triggered:", payload.new);
-      partnerProfile = payload.new;
-      
-      // Auto-unlock & redirect
-      await loadUserProfile(currentUser.id);
-      
-      alert(`Success! ${partnerProfile.first_name} has joined. Your portal is now active.`);
-    })
-    .subscribe();
-}
-
-// --- Inviting & Pairing Logic ---
-function copyInviteLink() {
-  const inviteLink = inviteLinkDisplay.value;
-  navigator.clipboard.writeText(inviteLink).then(() => {
-    btnCopyLink.textContent = "Copied!";
-    setTimeout(() => { btnCopyLink.textContent = "Copy"; }, 2000);
-  }).catch(err => {
-    console.error("Clipboard copy failed:", err);
-    alert("Failed to copy link. Please manually copy the text in the input box.");
-  });
-}
-
-function inviteViaWhatsApp() {
-  const inviteLink = inviteLinkDisplay.value;
-  const message = `Hey! ${currentUserProfile.first_name} is inviting you to join their private couple's portal. It's a space for us to track our appreciations and resolve things better together. Click here to accept the invite and set up your account: ${inviteLink}`;
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-  window.open(whatsappUrl, '_blank');
-}
-
-function inviteViaEmail() {
-  const email = inviteEmailInput.value.trim();
-  if (!email) {
-    alert("Please enter your partner's email address.");
-    return;
-  }
-
-  const inviteLink = inviteLinkDisplay.value;
-  const subject = `Join my private couples portal on US.`;
-  const body = `Hey! ${currentUserProfile.first_name} is inviting you to join their private couple's portal. It's a space for us to track our appreciations and resolve things better together. Click here to accept the invite and set up your account: ${inviteLink}`;
-  
-  const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  window.open(mailtoUrl, '_blank');
-}
-
 // --- Modals Display Control ---
 function openModal(modal) {
-  modal.classList.remove('hidden');
+  if (modal) modal.classList.remove('hidden');
 }
 
 function closeModal(modal) {
-  modal.classList.add('hidden');
-  const inputs = modal.querySelectorAll('input[type="text"], textarea');
-  inputs.forEach(input => input.value = "");
+  if (modal) {
+    modal.classList.add('hidden');
+    const inputs = modal.querySelectorAll('input[type="text"], textarea');
+    inputs.forEach(input => input.value = "");
+  }
 }
 
 // Close modals when clicking overlay background directly
@@ -647,29 +245,29 @@ window.addEventListener('click', (e) => {
   }
 });
 
-// --- Supabase Database Operations ---
-async function loadLogs() {
-  if (!currentUserProfile) return;
-
+// --- Local Storage Database Operations ---
+function loadLogs() {
   try {
-    const { data, error } = await supabaseClient
-      .from('logs')
-      .select('*')
-      .eq('couple_id', currentUserProfile.couple_id)
-      .order('timestamp', { ascending: false });
-    
-    if (error) throw error;
-    logs = data || [];
+    const storedLogs = localStorage.getItem('us_portal_logs');
+    if (storedLogs) {
+      logs = JSON.parse(storedLogs);
+    } else {
+      logs = [];
+    }
   } catch (err) {
-    console.error('Failed to load connection ledger logs:', err);
+    console.error('Failed to parse connection ledger logs:', err);
     logs = [];
   }
   renderFeed();
 }
 
+function saveLogs() {
+  localStorage.setItem('us_portal_logs', JSON.stringify(logs));
+}
+
 // --- Email Notification Trigger ---
 function triggerEmailNotification(type, data) {
-  if (!partnerProfile) return;
+  if (!partnerProfile || !partnerProfile.email) return;
 
   const recipient = partnerProfile.email;
   const senderName = currentUserProfile.first_name;
@@ -689,7 +287,7 @@ function triggerEmailNotification(type, data) {
 }
 
 // --- Submit Handlers ---
-async function submitAppreciation() {
+function submitAppreciation() {
   const message = inputAppreciationMsg.value.trim();
   if (!message) {
     alert('Please enter a message of appreciation!');
@@ -706,24 +304,15 @@ async function submitAppreciation() {
     timestamp: Date.now()
   };
 
-  try {
-    const { error } = await supabaseClient
-      .from('logs')
-      .insert([newLog]);
-    
-    if (error) throw error;
-
-    logs.push(newLog);
-    closeModal(modalAppreciation);
-    renderFeed();
-    triggerEmailNotification('appreciation', { message: message });
-  } catch (err) {
-    console.error('Failed to submit appreciation:', err);
-    alert('Failed to save to database: ' + err.message);
-  }
+  logs.push(newLog);
+  saveLogs();
+  
+  closeModal(modalAppreciation);
+  renderFeed();
+  triggerEmailNotification('appreciation', { message: message });
 }
 
-async function submitComplaint() {
+function submitComplaint() {
   const title = inputComplaintTitle.value.trim();
   const description = inputComplaintDesc.value.trim();
 
@@ -745,27 +334,19 @@ async function submitComplaint() {
     title: title,
     description: description,
     status: 'Open',
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    comments: []
   };
 
-  try {
-    const { error } = await supabaseClient
-      .from('logs')
-      .insert([newLog]);
-    
-    if (error) throw error;
-
-    logs.push(newLog);
-    closeModal(modalComplaint);
-    renderFeed();
-    triggerEmailNotification('complaint', { title: title, description: description });
-  } catch (err) {
-    console.error('Failed to submit complaint:', err);
-    alert('Failed to save to database: ' + err.message);
-  }
+  logs.push(newLog);
+  saveLogs();
+  
+  closeModal(modalComplaint);
+  renderFeed();
+  triggerEmailNotification('complaint', { title: title, description: description });
 }
 
-async function updateComplaintStatus(id, newStatus) {
+function updateComplaintStatus(id, newStatus) {
   const logIndex = logs.findIndex(log => log.id === id);
   if (logIndex === -1) return;
 
@@ -787,20 +368,9 @@ async function updateComplaintStatus(id, newStatus) {
     return;
   }
 
-  try {
-    const { error } = await supabaseClient
-      .from('logs')
-      .update({ status: newStatus })
-      .eq('id', id);
-    
-    if (error) throw error;
-
-    log.status = newStatus;
-    renderFeed();
-  } catch (err) {
-    console.error('Failed to update complaint status:', err);
-    alert('Failed to update status in database: ' + err.message);
-  }
+  log.status = newStatus;
+  saveLogs();
+  renderFeed();
 }
 
 // --- Feed Rendering Engine ---
@@ -809,9 +379,9 @@ function renderFeed() {
   const statusFilter = filterStatus.value;
 
   if (typeFilter === 'appreciation') {
-    statusFilterContainer.classList.add('disabled');
+    if (statusFilterContainer) statusFilterContainer.classList.add('disabled');
   } else {
-    statusFilterContainer.classList.remove('disabled');
+    if (statusFilterContainer) statusFilterContainer.classList.remove('disabled');
   }
 
   const sortedLogs = [...logs].sort((a, b) => b.timestamp - a.timestamp);
@@ -828,6 +398,7 @@ function renderFeed() {
     return true;
   });
 
+  if (!feedContainer) return;
   feedContainer.innerHTML = '';
 
   if (filteredLogs.length === 0) {
@@ -959,6 +530,7 @@ function renderFeed() {
 }
 
 function escapeHTML(str) {
+  if (!str) return '';
   return str.replace(/[&<>'"]/g, 
     tag => ({
       '&': '&amp;',
@@ -972,11 +544,12 @@ function escapeHTML(str) {
 
 function openCommentModal(id) {
   activeCommentLogId = id;
-  inputCommentText.value = '';
+  if (inputCommentText) inputCommentText.value = '';
   openModal(modalComment);
 }
 
-async function submitComment() {
+function submitComment() {
+  if (!inputCommentText) return;
   const commentText = inputCommentText.value.trim();
   if (!commentText) {
     alert('Please enter a comment!');
@@ -993,23 +566,13 @@ async function submitComment() {
     timestamp: Date.now()
   };
 
-  const updatedComments = [...(log.comments || []), newComment];
+  if (!log.comments) log.comments = [];
+  log.comments.push(newComment);
 
-  try {
-    const { error } = await supabaseClient
-      .from('logs')
-      .update({ comments: updatedComments })
-      .eq('id', activeCommentLogId);
-    
-    if (error) throw error;
-
-    log.comments = updatedComments;
-    closeModal(modalComment);
-    renderFeed();
-  } catch (err) {
-    console.error('Failed to submit comment:', err);
-    alert('Failed to save comment to database: ' + err.message);
-  }
+  saveLogs();
+  
+  closeModal(modalComment);
+  renderFeed();
 }
 
 // Expose status updates globally for inline card onclick triggers
@@ -1018,32 +581,17 @@ window.openCommentModal = openCommentModal;
 
 // --- Bind Navigation Events & Load ---
 function setupEventListeners() {
-  // Form Submit Triggers
-  signupForm.addEventListener('submit', handleRegister);
-  loginForm.addEventListener('submit', handleLogin);
-  
-  // Multiple logout buttons (both waiting-room and dashboard)
-  btnLogoutList.forEach(btn => btn.addEventListener('click', handleLogout));
-
-  // Waiting Room Invite Control Hooks
-  btnCopyLink.addEventListener('click', copyInviteLink);
-  btnWhatsappInvite.addEventListener('click', inviteViaWhatsApp);
-  btnEmailInvite.addEventListener('click', inviteViaEmail);
-  btnManualRefreshPair.addEventListener('click', () => {
-    if (currentUser) loadUserProfile(currentUser.id);
-  });
-
   // Dashboard modal triggers
-  cardTriggerAppreciation.addEventListener('click', () => openModal(modalAppreciation));
-  cardTriggerComplaint.addEventListener('click', () => openModal(modalComplaint));
+  if (cardTriggerAppreciation) cardTriggerAppreciation.addEventListener('click', () => openModal(modalAppreciation));
+  if (cardTriggerComplaint) cardTriggerComplaint.addEventListener('click', () => openModal(modalComplaint));
 
-  btnCloseAppreciation.addEventListener('click', () => closeModal(modalAppreciation));
-  btnCloseComplaint.addEventListener('click', () => closeModal(modalComplaint));
-  btnCloseComment.addEventListener('click', () => closeModal(modalComment));
+  if (btnCloseAppreciation) btnCloseAppreciation.addEventListener('click', () => closeModal(modalAppreciation));
+  if (btnCloseComplaint) btnCloseComplaint.addEventListener('click', () => closeModal(modalComplaint));
+  if (btnCloseComment) btnCloseComment.addEventListener('click', () => closeModal(modalComment));
 
-  btnSubmitAppreciation.addEventListener('click', submitAppreciation);
-  btnSubmitComplaint.addEventListener('click', submitComplaint);
-  btnSubmitComment.addEventListener('click', submitComment);
+  if (btnSubmitAppreciation) btnSubmitAppreciation.addEventListener('click', submitAppreciation);
+  if (btnSubmitComplaint) btnSubmitComplaint.addEventListener('click', submitComplaint);
+  if (btnSubmitComment) btnSubmitComment.addEventListener('click', submitComment);
 
   // Tab controls
   const tabs = [
@@ -1053,39 +601,23 @@ function setupEventListeners() {
   ];
 
   tabs.forEach(t => {
-    t.btn.addEventListener('click', () => {
-      tabs.forEach(item => item.btn.classList.remove('active'));
-      t.btn.classList.add('active');
-      currentTab = t.tabName;
-      renderFeed();
-    });
+    if (t.btn) {
+      t.btn.addEventListener('click', () => {
+        tabs.forEach(item => { if (item.btn) item.btn.classList.remove('active'); });
+        t.btn.classList.add('active');
+        currentTab = t.tabName;
+        renderFeed();
+      });
+    }
   });
 
   // Dropdown filter changes
-  filterType.addEventListener('change', renderFeed);
-  filterStatus.addEventListener('change', renderFeed);
-
-  // Hash-based router listener
-  window.addEventListener('hashchange', router);
+  if (filterType) filterType.addEventListener('change', renderFeed);
+  if (filterStatus) filterStatus.addEventListener('change', renderFeed);
 }
 
 // --- Initialize App ---
 document.addEventListener('DOMContentLoaded', () => {
-  // Staggered letter reveal for subtitle text on landing page
-  const subtitleEl = document.querySelector('.hero-subtitle');
-  if (subtitleEl) {
-    const text = subtitleEl.textContent.trim();
-    subtitleEl.textContent = '';
-    [...text].forEach((char, index) => {
-      const span = document.createElement('span');
-      span.textContent = char === ' ' ? '\u00A0' : char; // Use non-breaking space for layout
-      span.className = 'char-item';
-      const delay = 0.4 + index * 0.018;
-      span.style.animationDelay = `${delay}s`;
-      subtitleEl.appendChild(span);
-    });
-  }
-
   // 1. Setup particle system
   initParticles();
   animateParticles();
@@ -1097,40 +629,6 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. Bind inputs/controls & router
   setupEventListeners();
 
-  // 3. Wait for Clerk and initialize
-  waitForClerk().then(async (clerkInstance) => {
-    clerk = clerkInstance;
-    await clerk.load();
-
-    // Attach click listeners to landing buttons
-    const landingBtnLogin = document.getElementById('landing-btn-login');
-    const landingBtnSignupNav = document.getElementById('landing-btn-signup-nav');
-    const landingBtnSignupHero = document.getElementById('landing-btn-signup-hero');
-
-    if (landingBtnLogin) {
-      landingBtnLogin.addEventListener('click', (e) => {
-        e.preventDefault();
-        clerk.openSignIn();
-      });
-    }
-    if (landingBtnSignupNav) {
-      landingBtnSignupNav.addEventListener('click', (e) => {
-        e.preventDefault();
-        clerk.openSignUp();
-      });
-    }
-    if (landingBtnSignupHero) {
-      landingBtnSignupHero.addEventListener('click', (e) => {
-        e.preventDefault();
-        clerk.openSignUp();
-      });
-    }
-
-    clerk.addListener(async ({ user }) => {
-      console.log("Clerk state changed. User:", user ? user.id : "null");
-      await checkClerkSession();
-    });
-
-    await checkClerkSession();
-  });
+  // 3. Render portal immediately
+  router();
 });
